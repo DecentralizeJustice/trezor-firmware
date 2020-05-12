@@ -1,7 +1,7 @@
-from trezor import utils
+from trezor import utils, wire
 from trezor.crypto import base58, cashaddr
 from trezor.crypto.hashlib import sha256
-from trezor.messages import FailureType, InputScriptType, OutputScriptType
+from trezor.messages import InputScriptType, OutputScriptType
 from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.messages.TxInputType import TxInputType
 from trezor.messages.TxOutputType import TxOutputType
@@ -25,10 +25,6 @@ from apps.wallet.sign_tx.writers import (
 if False:
     from typing import List, Optional
     from apps.wallet.sign_tx.writers import Writer
-
-
-class ScriptsError(ValueError):
-    pass
 
 
 def input_derive_script(
@@ -65,7 +61,7 @@ def input_derive_script(
             txi.multisig, signature, signature_index, hash_type, coin
         )
     else:
-        raise ScriptsError(FailureType.ProcessError, "Invalid script type")
+        raise wire.ProcessError("Invalid script type")
 
 
 def output_derive_script(txo: TxOutputType, coin: CoinInfo) -> bytes:
@@ -89,13 +85,13 @@ def output_derive_script(txo: TxOutputType, coin: CoinInfo) -> bytes:
         elif version == cashaddr.ADDRESS_TYPE_P2SH:
             version = coin.address_type_p2sh
         else:
-            raise ScriptsError("Unknown cashaddr address type")
+            raise wire.DataError("Unknown cashaddr address type")  # TODO
         raw_address = bytes([version]) + data
     else:
         try:
             raw_address = base58.decode_check(txo.address, coin.b58_hash)
         except ValueError:
-            raise ScriptsError(FailureType.DataError, "Invalid address")
+            raise wire.DataError("Invalid address")
 
     if address_type.check(coin.address_type, raw_address):
         # p2pkh
@@ -108,7 +104,7 @@ def output_derive_script(txo: TxOutputType, coin: CoinInfo) -> bytes:
         script = output_script_p2sh(scripthash)
         return script
 
-    raise ScriptsError(FailureType.DataError, "Invalid address type")
+    raise wire.DataError("Invalid address type")
 
 
 # see https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
@@ -131,9 +127,7 @@ def bip143_derive_script_code(txi: TxInputType, pubkeyhash: bytes) -> bytearray:
         return output_script_p2pkh(pubkeyhash)
 
     else:
-        raise ScriptsError(
-            FailureType.DataError, "Unknown input script type for bip143 script code",
-        )
+        raise wire.DataError("Unknown input script type for bip143 script code")
 
 
 # P2PKH, P2SH
@@ -238,7 +232,7 @@ def input_script_p2wsh_in_p2sh(script_hash: bytes) -> bytearray:
     # Signature is moved to the witness.
 
     if len(script_hash) != 32:
-        raise ScriptsError("Redeem script hash should be 32 bytes long")
+        raise wire.DataError("Redeem script hash should be 32 bytes long")  # TODO
 
     w = empty_bytearray(3 + len(script_hash))
     w.append(0x22)  # length of the data
@@ -272,7 +266,7 @@ def witness_p2wsh(
     )
     # fill in our signature
     if signatures[signature_index]:
-        raise ScriptsError("Invalid multisig parameters")
+        raise wire.DataError("Invalid multisig parameters")  # TODO
     signatures[signature_index] = signature
 
     # filter empty
@@ -324,7 +318,7 @@ def input_script_multisig(
 ) -> bytearray:
     signatures = multisig.signatures  # other signatures
     if len(signatures[signature_index]) > 0:
-        raise ScriptsError("Invalid multisig parameters")
+        raise wire.DataError("Invalid multisig parameters")  # TODO
     signatures[signature_index] = signature  # our signature
 
     # length of the redeem script
@@ -367,10 +361,10 @@ def output_script_multisig(pubkeys: List[bytes], m: int) -> bytearray:
 def write_output_script_multisig(w: Writer, pubkeys: List[bytes], m: int) -> None:
     n = len(pubkeys)
     if n < 1 or n > 15 or m < 1 or m > 15 or m > n:
-        raise ScriptsError("Invalid multisig parameters")
+        raise wire.DataError("Invalid multisig parameters")  # TODO
     for pubkey in pubkeys:
         if len(pubkey) != 33:
-            raise ScriptsError("Invalid multisig parameters")
+            raise wire.DataError("Invalid multisig parameters")  # TODO
 
     w.append(0x50 + m)  # numbers 1 to 16 are pushed as 0x50 + value
     for p in pubkeys:

@@ -111,7 +111,7 @@ class TestAddress(unittest.TestCase):
         self.assertEqual(address, '39bgKC7RFbpoCRbtD5KEdkYKtNyhpsNa3Z')
 
         for invalid_m in (-1, 0, len(pubkeys) + 1, 16):
-            with self.assertRaises(scripts.ScriptsError):
+            with self.assertRaises(wire.DataError):
                 address_multisig_p2sh(pubkeys, invalid_m, coin)
 
     def test_multisig_address_p2wsh_in_p2sh(self):

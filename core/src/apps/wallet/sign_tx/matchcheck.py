@@ -1,12 +1,11 @@
 from micropython import const
 
-from trezor.messages import FailureType
+from trezor import wire
 from trezor.messages.TxInputType import TxInputType
 from trezor.messages.TxOutputType import TxOutputType
 from trezor.utils import ensure
 
 from apps.wallet.sign_tx import multisig
-from apps.wallet.sign_tx.common import SigningError
 
 if False:
     from typing import Any, Union
@@ -71,9 +70,7 @@ class MatchChecker:
         # All added inputs had a matching attribute, allowing a change-output.
         # Ensure that this input still has the same attribute.
         if self.attribute != self.attribute_from_tx(txi):
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
 
     def output_matches(self, txo: TxOutputType) -> bool:
         self.read_only = True

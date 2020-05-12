@@ -1,8 +1,9 @@
 import gc
 from micropython import const
 
+from trezor import wire
 from trezor.crypto.hashlib import sha256
-from trezor.messages import FailureType, InputScriptType
+from trezor.messages import InputScriptType
 from trezor.messages.SignTx import SignTx
 from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
@@ -23,7 +24,7 @@ from apps.wallet.sign_tx import (
     tx_weight,
     writers,
 )
-from apps.wallet.sign_tx.common import SigningError, ecdsa_sign
+from apps.wallet.sign_tx.common import ecdsa_sign
 from apps.wallet.sign_tx.matchcheck import MultisigFingerprintChecker, WalletPathChecker
 
 if False:
@@ -137,16 +138,16 @@ class Bitcoin:
         # fee > (coin.maxfee per byte * tx size)
         if fee > (self.coin.maxfee_kb / 1000) * (self.weight.get_total() / 4):
             if not await helpers.confirm_feeoverthreshold(fee, self.coin):
-                raise SigningError(FailureType.ActionCancelled, "Signing cancelled")
+                raise wire.ActionCancelled("Signing cancelled")
 
         if self.tx.lock_time > 0:
             if not await helpers.confirm_nondefault_locktime(self.tx.lock_time):
-                raise SigningError(FailureType.ActionCancelled, "Locktime cancelled")
+                raise wire.ActionCancelled("Locktime cancelled")
 
         if not await helpers.confirm_total(
             self.total_in - self.change_out, fee, self.coin
         ):
-            raise SigningError(FailureType.ActionCancelled, "Total cancelled")
+            raise wire.ActionCancelled("Total cancelled")
 
     async def step4_serialize_inputs(self) -> None:
         self.write_tx_header(self.serialized_tx, self.tx, bool(self.segwit))
@@ -193,7 +194,7 @@ class Bitcoin:
         elif input_is_nonsegwit(txi):
             await self.process_nonsegwit_input(txi)
         else:
-            raise SigningError(FailureType.DataError, "Wrong input script type")
+            raise wire.DataError("Wrong input script type")
 
     async def process_segwit_input(self, txi: TxInputType) -> None:
         await self.process_bip143_input(txi)
@@ -205,7 +206,7 @@ class Bitcoin:
 
     async def process_bip143_input(self, txi: TxInputType) -> None:
         if not txi.amount:
-            raise SigningError(FailureType.DataError, "Expected input with amount")
+            raise wire.DataError("Expected input with amount")
         self.bip143_in += txi.amount
         self.total_in += txi.amount
 
@@ -214,23 +215,21 @@ class Bitcoin:
             # output is change and does not need confirmation
             self.change_out = txo.amount
         elif not await helpers.confirm_output(txo, self.coin):
-            raise SigningError(FailureType.ActionCancelled, "Output cancelled")
+            raise wire.ActionCancelled("Output cancelled")
 
         self.write_tx_output(self.h_confirmed, txo, script_pubkey)
         self.hash143_add_output(txo, script_pubkey)
         self.total_out += txo.amount
 
     def on_negative_fee(self) -> None:
-        raise SigningError(FailureType.NotEnoughFunds, "Not enough funds")
+        raise wire.NotEnoughFunds("Not enough funds")
 
     async def serialize_segwit_input(self, i: int) -> None:
         # STAGE_REQUEST_SEGWIT_INPUT in legacy
         txi = await helpers.request_tx_input(self.tx_req, i, self.coin)
 
         if not input_is_segwit(txi):
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
         self.wallet_path.check_input(txi)
         # NOTE: No need to check the multisig fingerprint, because we won't be signing
         # the script here. Signatures are produced in STAGE_REQUEST_SEGWIT_WITNESS.
@@ -245,9 +244,7 @@ class Bitcoin:
         self.multisig_fingerprint.check_input(txi)
 
         if txi.amount > self.bip143_in:
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
         self.bip143_in -= txi.amount
 
         node = self.keychain.derive(txi.address_n, self.coin.curve_name)
@@ -265,9 +262,7 @@ class Bitcoin:
         txi = await helpers.request_tx_input(self.tx_req, i, self.coin)
 
         if not input_is_segwit(txi):
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
 
         public_key, signature = self.sign_bip143_input(txi)
 
@@ -318,9 +313,7 @@ class Bitcoin:
                         addresses.ecdsa_hash_pubkey(key_sign_pub, self.coin)
                     )
                 else:
-                    raise SigningError(
-                        FailureType.ProcessError, "Unknown transaction type"
-                    )
+                    raise wire.ProcessError("Unknown transaction type")
                 txi_sign = txi
             else:
                 script_pubkey = bytes()
@@ -340,9 +333,7 @@ class Bitcoin:
 
         # check the control digests
         if self.h_confirmed.get_digest() != h_check.get_digest():
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
 
         # compute the signature from the tx digest
         signature = ecdsa_sign(
@@ -368,9 +359,7 @@ class Bitcoin:
         tx = await helpers.request_tx_meta(self.tx_req, self.coin, prev_hash)
 
         if tx.outputs_cnt <= prev_index:
-            raise SigningError(
-                FailureType.ProcessError, "Not enough outputs in previous transaction."
-            )
+            raise wire.ProcessError("Not enough outputs in previous transaction.")
 
         txh = self.create_hash_writer()
 
@@ -401,9 +390,7 @@ class Bitcoin:
             writers.get_tx_hash(txh, double=self.coin.sign_hash_double, reverse=True)
             != prev_hash
         ):
-            raise SigningError(
-                FailureType.ProcessError, "Encountered invalid prev_hash"
-            )
+            raise wire.ProcessError("Encountered invalid prev_hash")
 
         return amount_out
 
@@ -469,7 +456,7 @@ class Bitcoin:
                     txo.script_type
                 ]
             except KeyError:
-                raise SigningError(FailureType.DataError, "Invalid script type")
+                raise wire.DataError("Invalid script type")
             node = self.keychain.derive(txo.address_n, self.coin.curve_name)
             txo.address = addresses.get_address(
                 input_script_type, self.coin, node, txo.multisig

@@ -1,8 +1,9 @@
 from micropython import const
 
+from trezor import wire
 from trezor.crypto import base58, bech32, cashaddr
 from trezor.crypto.hashlib import sha256
-from trezor.messages import FailureType, InputScriptType
+from trezor.messages import InputScriptType
 from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.utils import ensure
 
@@ -23,10 +24,6 @@ if False:
 _BECH32_WITVER = const(0x00)
 
 
-class AddressError(Exception):
-    pass
-
-
 def get_address(
     script_type: EnumTypeInputScriptType,
     coin: CoinInfo,
@@ -42,11 +39,9 @@ def get_address(
             pubkey = node.public_key()
             index = multisig_pubkey_index(multisig, pubkey)
             if index is None:
-                raise AddressError(FailureType.ProcessError, "Public key not found")
+                raise wire.ProcessError("Public key not found")
             if coin.address_type_p2sh is None:
-                raise AddressError(
-                    FailureType.ProcessError, "Multisig not enabled on this coin"
-                )
+                raise wire.ProcessError("Multisig not enabled on this coin")
 
             pubkeys = multisig_get_pubkeys(multisig)
             address = address_multisig_p2sh(pubkeys, multisig.m, coin)
@@ -54,7 +49,7 @@ def get_address(
                 address = address_to_cashaddr(address, coin)
             return address
         if script_type == InputScriptType.SPENDMULTISIG:
-            raise AddressError(FailureType.ProcessError, "Multisig details required")
+            raise wire.ProcessError("Multisig details required")
 
         # p2pkh
         address = node.address(coin.address_type)
@@ -64,9 +59,7 @@ def get_address(
 
     elif script_type == InputScriptType.SPENDWITNESS:  # native p2wpkh or native p2wsh
         if not coin.segwit or not coin.bech32_prefix:
-            raise AddressError(
-                FailureType.ProcessError, "Segwit not enabled on this coin"
-            )
+            raise wire.ProcessError("Segwit not enabled on this coin")
         # native p2wsh multisig
         if multisig is not None:
             pubkeys = multisig_get_pubkeys(multisig)
@@ -79,9 +72,7 @@ def get_address(
         script_type == InputScriptType.SPENDP2SHWITNESS
     ):  # p2wpkh or p2wsh nested in p2sh
         if not coin.segwit or coin.address_type_p2sh is None:
-            raise AddressError(
-                FailureType.ProcessError, "Segwit not enabled on this coin"
-            )
+            raise wire.ProcessError("Segwit not enabled on this coin")
         # p2wsh multisig nested in p2sh
         if multisig is not None:
             pubkeys = multisig_get_pubkeys(multisig)
@@ -91,14 +82,12 @@ def get_address(
         return address_p2wpkh_in_p2sh(node.public_key(), coin)
 
     else:
-        raise AddressError(FailureType.ProcessError, "Invalid script type")
+        raise wire.ProcessError("Invalid script type")
 
 
 def address_multisig_p2sh(pubkeys: List[bytes], m: int, coin: CoinInfo) -> str:
     if coin.address_type_p2sh is None:
-        raise AddressError(
-            FailureType.ProcessError, "Multisig not enabled on this coin"
-        )
+        raise wire.ProcessError("Multisig not enabled on this coin")
     redeem_script = output_script_multisig(pubkeys, m)
     redeem_script_hash = coin.script_hash(redeem_script)
     return address_p2sh(redeem_script_hash, coin)
@@ -106,9 +95,7 @@ def address_multisig_p2sh(pubkeys: List[bytes], m: int, coin: CoinInfo) -> str:
 
 def address_multisig_p2wsh_in_p2sh(pubkeys: List[bytes], m: int, coin: CoinInfo) -> str:
     if coin.address_type_p2sh is None:
-        raise AddressError(
-            FailureType.ProcessError, "Multisig not enabled on this coin"
-        )
+        raise wire.ProcessError("Multisig not enabled on this coin")
     witness_script = output_script_multisig(pubkeys, m)
     witness_script_hash = sha256(witness_script).digest()
     return address_p2wsh_in_p2sh(witness_script_hash, coin)
@@ -116,9 +103,7 @@ def address_multisig_p2wsh_in_p2sh(pubkeys: List[bytes], m: int, coin: CoinInfo)
 
 def address_multisig_p2wsh(pubkeys: List[bytes], m: int, hrp: str) -> str:
     if not hrp:
-        raise AddressError(
-            FailureType.ProcessError, "Multisig not enabled on this coin"
-        )
+        raise wire.ProcessError("Multisig not enabled on this coin")
     witness_script = output_script_multisig(pubkeys, m)
     witness_script_hash = sha256(witness_script).digest()
     return address_p2wsh(witness_script_hash, hrp)
@@ -151,21 +136,21 @@ def address_p2wpkh(pubkey: bytes, coin: CoinInfo) -> str:
     pubkeyhash = ecdsa_hash_pubkey(pubkey, coin)
     address = bech32.encode(coin.bech32_prefix, _BECH32_WITVER, pubkeyhash)
     if address is None:
-        raise AddressError(FailureType.ProcessError, "Invalid address")
+        raise wire.ProcessError("Invalid address")
     return address
 
 
 def address_p2wsh(witness_script_hash: bytes, hrp: str) -> str:
     address = bech32.encode(hrp, _BECH32_WITVER, witness_script_hash)
     if address is None:
-        raise AddressError(FailureType.ProcessError, "Invalid address")
+        raise wire.ProcessError("Invalid address")
     return address
 
 
 def decode_bech32_address(prefix: str, address: str) -> bytes:
     witver, raw = bech32.decode(prefix, address)
     if witver != _BECH32_WITVER:
-        raise AddressError(FailureType.ProcessError, "Invalid address witness program")
+        raise wire.ProcessError("Invalid address witness program")
     return bytes(raw)
 
 

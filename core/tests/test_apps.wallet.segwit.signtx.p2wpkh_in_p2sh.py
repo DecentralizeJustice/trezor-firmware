@@ -13,10 +13,11 @@ from trezor.messages.TxRequestDetailsType import TxRequestDetailsType
 from trezor.messages.TxRequestSerializedType import TxRequestSerializedType
 from trezor.messages import InputScriptType
 from trezor.messages import OutputScriptType
+from trezor import wire
 
 from apps.common import coins
 from apps.common.seed import Keychain
-from apps.wallet.sign_tx import bitcoin, common, helpers
+from apps.wallet.sign_tx import bitcoin, helpers
 
 
 EMPTY_SERIALIZED = TxRequestSerializedType(serialized_tx=bytearray())
@@ -337,8 +338,8 @@ class TestSignSegwitTxP2WPKHInP2SH(unittest.TestCase):
         i = 0
         messages_count = int(len(messages) / 2)
         for request, response in chunks(messages, 2):
-            if i == messages_count - 1:  # last message should throw SigningError
-                self.assertRaises(common.SigningError, signer.send, request)
+            if i == messages_count - 1:  # last message should throw wire.Error
+                self.assertRaises(wire.ProcessError, signer.send, request)
             else:
                 self.assertEqual(signer.send(request), response)
             i += 1

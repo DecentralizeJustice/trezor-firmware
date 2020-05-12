@@ -1,6 +1,6 @@
+from trezor import wire
 from trezor.crypto import bip32
 from trezor.crypto.hashlib import sha256
-from trezor.messages import FailureType
 from trezor.messages.HDNodeType import HDNodeType
 from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.utils import HashWriter
@@ -9,10 +9,6 @@ from apps.wallet.sign_tx.writers import write_bytes_fixed, write_uint32
 
 if False:
     from typing import List
-
-
-class MultisigError(ValueError):
-    pass
 
 
 def multisig_fingerprint(multisig: MultisigRedeemScriptType) -> bytes:
@@ -24,11 +20,11 @@ def multisig_fingerprint(multisig: MultisigRedeemScriptType) -> bytes:
     n = len(pubnodes)
 
     if n < 1 or n > 15 or m < 1 or m > 15:
-        raise MultisigError(FailureType.DataError, "Invalid multisig parameters")
+        raise wire.DataError("Invalid multisig parameters")
 
     for d in pubnodes:
         if len(d.public_key) != 33 or len(d.chain_code) != 32:
-            raise MultisigError(FailureType.DataError, "Invalid multisig parameters")
+            raise wire.DataError("Invalid multisig parameters")
 
     # casting to bytes(), sorting on bytearray() is not supported in MicroPython
     pubnodes = sorted(pubnodes, key=lambda n: bytes(n.public_key))
@@ -55,7 +51,7 @@ def multisig_pubkey_index(multisig: MultisigRedeemScriptType, pubkey: bytes) -> 
         for i, hd in enumerate(multisig.pubkeys):
             if multisig_get_pubkey(hd.node, hd.address_n) == pubkey:
                 return i
-    raise MultisigError(FailureType.DataError, "Pubkey not found in multisig script")
+    raise wire.DataError("Pubkey not found in multisig script")
 
 
 def multisig_get_pubkey(n: HDNodeType, p: list) -> bytes:

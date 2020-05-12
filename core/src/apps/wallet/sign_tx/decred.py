@@ -1,8 +1,9 @@
 import gc
 from micropython import const
 
+from trezor import wire
 from trezor.crypto.hashlib import blake256
-from trezor.messages import FailureType, InputScriptType
+from trezor.messages import InputScriptType
 from trezor.messages.SignTx import SignTx
 from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
@@ -13,7 +14,7 @@ from trezor.utils import HashWriter, ensure
 from apps.common import coininfo, seed
 from apps.wallet.sign_tx import addresses, helpers, multisig, progress, scripts, writers
 from apps.wallet.sign_tx.bitcoin import Bitcoin
-from apps.wallet.sign_tx.common import SigningError, ecdsa_sign
+from apps.wallet.sign_tx.common import ecdsa_sign
 
 DECRED_SERIALIZE_FULL = const(0 << 16)
 DECRED_SERIALIZE_NO_WITNESS = const(1 << 16)
@@ -60,10 +61,7 @@ class Decred(Bitcoin):
 
     async def confirm_output(self, txo: TxOutputType, script_pubkey: bytes) -> None:
         if txo.decred_script_version != 0:
-            raise SigningError(
-                FailureType.ActionCancelled,
-                "Cannot send to output with script version != 0",
-            )
+            raise wire.ActionCancelled("Cannot send to output with script version != 0")
         await super().confirm_output(txo, script_pubkey)
         self.write_tx_output(self.serialized_tx, txo, script_pubkey)
 
@@ -93,7 +91,7 @@ class Decred(Bitcoin):
                     addresses.ecdsa_hash_pubkey(key_sign_pub, self.coin)
                 )
             else:
-                raise SigningError("Unsupported input script type")
+                raise wire.DataError("Unsupported input script type")  # TODO ?
 
             h_witness = self.create_hash_writer()
             writers.write_uint32(
@@ -138,10 +136,7 @@ class Decred(Bitcoin):
 
     def check_prevtx_output(self, txo_bin: TxOutputBinType) -> None:
         if txo_bin.decred_script_version != 0:
-            raise SigningError(
-                FailureType.ProcessError,
-                "Cannot use utxo that has script_version != 0",
-            )
+            raise wire.ProcessError("Cannot use utxo that has script_version != 0")
 
     def hash143_add_input(self, txi: TxInputType) -> None:
         writers.write_tx_input_decred(self.h_prefix, txi)

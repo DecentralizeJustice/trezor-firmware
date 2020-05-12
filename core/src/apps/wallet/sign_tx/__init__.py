@@ -5,16 +5,7 @@ from trezor.messages.TxAck import TxAck
 from trezor.messages.TxRequest import TxRequest
 
 from apps.common import coins, paths, seed
-from apps.wallet.sign_tx import (
-    addresses,
-    bitcoin,
-    common,
-    helpers,
-    layout,
-    multisig,
-    progress,
-    scripts,
-)
+from apps.wallet.sign_tx import bitcoin, helpers, layout, progress
 
 if not utils.BITCOIN_ONLY:
     from apps.wallet.sign_tx import bitcoinlike, decred, zcash
@@ -43,22 +34,11 @@ async def sign_tx(ctx: wire.Context, msg: SignTx, keychain: seed.Keychain) -> Tx
     else:
         signer_class = bitcoin.Bitcoin
 
-    try:
-        signer = signer_class(msg, keychain, coin).signer()
-    except common.SigningError as e:
-        raise wire.Error(*e.args)
+    signer = signer_class(msg, keychain, coin).signer()
 
     res = None  # type: Union[TxAck, bool, None]
     while True:
-        try:
-            req = signer.send(res)
-        except (
-            common.SigningError,
-            multisig.MultisigError,
-            addresses.AddressError,
-            scripts.ScriptsError,
-        ) as e:
-            raise wire.Error(*e.args)
+        req = signer.send(res)
         if isinstance(req, TxRequest):
             if req.request_type == TXFINISHED:
                 break

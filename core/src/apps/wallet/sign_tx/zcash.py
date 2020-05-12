@@ -1,8 +1,9 @@
 import ustruct as struct
 from micropython import const
 
+from trezor import wire
 from trezor.crypto.hashlib import blake2b
-from trezor.messages import FailureType, InputScriptType
+from trezor.messages import InputScriptType
 from trezor.messages.SignTx import SignTx
 from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
@@ -12,7 +13,6 @@ from apps.common.coininfo import CoinInfo
 from apps.common.seed import Keychain
 from apps.wallet.sign_tx import helpers
 from apps.wallet.sign_tx.bitcoinlike import Bitcoinlike
-from apps.wallet.sign_tx.common import SigningError
 from apps.wallet.sign_tx.multisig import multisig_get_pubkeys
 from apps.wallet.sign_tx.scripts import output_script_multisig, output_script_p2pkh
 from apps.wallet.sign_tx.writers import (
@@ -45,10 +45,7 @@ class Overwintered(Bitcoinlike):
             if not self.tx.branch_id:
                 self.tx.branch_id = 0x76B809BB  # Sapling
         else:
-            raise SigningError(
-                FailureType.DataError,
-                "Unsupported version for overwintered transaction",
-            )
+            raise wire.DataError("Unsupported version for overwintered transaction")
 
     async def step7_finish(self) -> None:
         self.write_tx_footer(self.serialized_tx, self.tx)
@@ -63,10 +60,7 @@ class Overwintered(Bitcoinlike):
             write_varint(self.serialized_tx, 0)  # nShieldedOutput
             write_varint(self.serialized_tx, 0)  # nJoinSplit
         else:
-            raise SigningError(
-                FailureType.DataError,
-                "Unsupported version for overwintered transaction",
-            )
+            raise wire.DataError("Unsupported version for overwintered transaction")
 
         await helpers.request_tx_finish(self.tx_req)
 
@@ -136,10 +130,7 @@ class Overwintered(Bitcoinlike):
             # 12. nHashType
             write_uint32(h_preimage, self.get_hash_type())
         else:
-            raise SigningError(
-                FailureType.DataError,
-                "Unsupported version for overwintered transaction",
-            )
+            raise wire.DataError("Unsupported version for overwintered transaction")
 
         # 10a /13a. outpoint
         write_bytes_reversed(h_preimage, txi.prev_hash, TX_HASH_SIZE)
@@ -170,6 +161,4 @@ def derive_script_code(txi: TxInputType, pubkeyhash: bytes) -> bytearray:
         return output_script_p2pkh(pubkeyhash)
 
     else:
-        raise SigningError(
-            FailureType.DataError, "Unknown input script type for zip143 script code"
-        )
+        raise wire.DataError("Unknown input script type for zip143 script code")

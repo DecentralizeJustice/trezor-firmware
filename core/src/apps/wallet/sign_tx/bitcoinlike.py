@@ -1,14 +1,13 @@
 import gc
 from micropython import const
 
-from trezor.messages import FailureType
+from trezor import wire
 from trezor.messages.SignTx import SignTx
 from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
 
 from apps.wallet.sign_tx import helpers, multisig, writers
 from apps.wallet.sign_tx.bitcoin import Bitcoin, input_is_nonsegwit
-from apps.wallet.sign_tx.common import SigningError
 
 if False:
     from typing import Union
@@ -19,7 +18,7 @@ _SIGHASH_FORKID = const(0x40)
 class Bitcoinlike(Bitcoin):
     async def process_segwit_input(self, txi: TxInputType) -> None:
         if not self.coin.segwit:
-            raise SigningError(FailureType.DataError, "Segwit not enabled on this coin")
+            raise wire.DataError("Segwit not enabled on this coin")
         await super().process_segwit_input(txi)
 
     async def process_nonsegwit_input(self, txi: TxInputType) -> None:
@@ -32,9 +31,7 @@ class Bitcoinlike(Bitcoin):
         txi = await helpers.request_tx_input(self.tx_req, i_sign, self.coin)
 
         if not input_is_nonsegwit(txi):
-            raise SigningError(
-                FailureType.ProcessError, "Transaction has changed during signing"
-            )
+            raise wire.ProcessError("Transaction has changed during signing")
         public_key, signature = self.sign_bip143_input(txi)
 
         # if multisig, do a sanity check to ensure we are signing with a key that is included in the multisig

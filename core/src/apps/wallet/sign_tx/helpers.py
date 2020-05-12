@@ -1,7 +1,7 @@
 import gc
 
-from trezor import utils
-from trezor.messages import FailureType, InputScriptType, OutputScriptType
+from trezor import utils, wire
+from trezor.messages import InputScriptType, OutputScriptType
 from trezor.messages.RequestType import (
     TXEXTRADATA,
     TXFINISHED,
@@ -16,7 +16,6 @@ from trezor.messages.TxOutputBinType import TxOutputBinType
 from trezor.messages.TxOutputType import TxOutputType
 from trezor.messages.TxRequest import TxRequest
 
-from .common import SigningError
 from .writers import TX_HASH_SIZE
 
 from apps.common.coininfo import CoinInfo
@@ -195,11 +194,11 @@ def sanitize_sign_tx(tx: SignTx, coin: CoinInfo) -> SignTx:
     if coin.decred or coin.overwintered:
         tx.expiry = tx.expiry if tx.expiry is not None else 0
     elif tx.expiry:
-        raise SigningError(FailureType.DataError, "Expiry not enabled on this coin.")
+        raise wire.DataError("Expiry not enabled on this coin.")
     if coin.timestamp and not tx.timestamp:
-        raise SigningError(FailureType.DataError, "Timestamp must be set.")
+        raise wire.DataError("Timestamp must be set.")
     elif not coin.timestamp and tx.timestamp:
-        raise SigningError(FailureType.DataError, "Timestamp not enabled on this coin.")
+        raise wire.DataError("Timestamp not enabled on this coin.")
     return tx
 
 
@@ -211,17 +210,15 @@ def sanitize_tx_meta(tx: TransactionType, coin: CoinInfo) -> TransactionType:
     if coin.extra_data:
         tx.extra_data_len = tx.extra_data_len if tx.extra_data_len is not None else 0
     elif tx.extra_data_len:
-        raise SigningError(
-            FailureType.DataError, "Extra data not enabled on this coin."
-        )
+        raise wire.DataError("Extra data not enabled on this coin.")
     if coin.decred or coin.overwintered:
         tx.expiry = tx.expiry if tx.expiry is not None else 0
     elif tx.expiry:
-        raise SigningError(FailureType.DataError, "Expiry not enabled on this coin.")
+        raise wire.DataError("Expiry not enabled on this coin.")
     if coin.timestamp and not tx.timestamp:
-        raise SigningError(FailureType.DataError, "Timestamp must be set.")
+        raise wire.DataError("Timestamp must be set.")
     elif not coin.timestamp and tx.timestamp:
-        raise SigningError(FailureType.DataError, "Timestamp not enabled on this coin.")
+        raise wire.DataError("Timestamp not enabled on this coin.")
     return tx
 
 
@@ -232,29 +229,18 @@ def sanitize_tx_input(tx: TransactionType, coin: CoinInfo) -> TxInputType:
     if txi.sequence is None:
         txi.sequence = 0xFFFFFFFF
     if txi.prev_hash is None or len(txi.prev_hash) != TX_HASH_SIZE:
-        raise SigningError(FailureType.DataError, "Provided prev_hash is invalid.")
+        raise wire.DataError("Provided prev_hash is invalid.")
     if txi.multisig and txi.script_type not in MULTISIG_INPUT_SCRIPT_TYPES:
-        raise SigningError(
-            FailureType.DataError, "Multisig field provided but not expected.",
-        )
+        raise wire.DataError("Multisig field provided but not expected.")
     if txi.address_n and txi.script_type not in INTERNAL_INPUT_SCRIPT_TYPES:
-        raise SigningError(
-            FailureType.DataError, "Input's address_n provided but not expected.",
-        )
+        raise wire.DataError("Input's address_n provided but not expected.")
     if not coin.decred and txi.decred_tree is not None:
-        raise SigningError(
-            FailureType.DataError,
-            "Decred details provided but Decred coin not specified.",
-        )
+        raise wire.DataError("Decred details provided but Decred coin not specified.")
     if txi.script_type in SEGWIT_INPUT_SCRIPT_TYPES:
         if not coin.segwit:
-            raise SigningError(
-                FailureType.DataError, "Segwit not enabled on this coin",
-            )
+            raise wire.DataError("Segwit not enabled on this coin")
         if txi.amount is None:
-            raise SigningError(
-                FailureType.DataError, "Segwit input without amount",
-            )
+            raise wire.DataError("Segwit input without amount")
 
     _sanitize_decred(txi, coin)
     return txi
@@ -263,35 +249,24 @@ def sanitize_tx_input(tx: TransactionType, coin: CoinInfo) -> TxInputType:
 def sanitize_tx_output(tx: TransactionType, coin: CoinInfo) -> TxOutputType:
     txo = tx.outputs[0]
     if txo.multisig and txo.script_type not in MULTISIG_OUTPUT_SCRIPT_TYPES:
-        raise SigningError(
-            FailureType.DataError, "Multisig field provided but not expected.",
-        )
+        raise wire.DataError("Multisig field provided but not expected.")
     if txo.address_n and txo.script_type not in CHANGE_OUTPUT_SCRIPT_TYPES:
-        raise SigningError(
-            FailureType.DataError, "Output's address_n provided but not expected.",
-        )
+        raise wire.DataError("Output's address_n provided but not expected.")
     if txo.script_type == OutputScriptType.PAYTOOPRETURN:
         # op_return output
         if txo.amount != 0:
-            raise SigningError(
-                FailureType.DataError, "OP_RETURN output with non-zero amount"
-            )
+            raise wire.DataError("OP_RETURN output with non-zero amount")
         if txo.address or txo.address_n or txo.multisig:
-            raise SigningError(
-                FailureType.DataError, "OP_RETURN output with address or multisig"
-            )
+            raise wire.DataError("OP_RETURN output with address or multisig")
     else:
         if txo.op_return_data:
-            raise SigningError(
-                FailureType.DataError,
-                "OP RETURN data provided but not OP RETURN script type.",
+            raise wire.DataError(
+                "OP RETURN data provided but not OP RETURN script type."
             )
         if txo.address_n and txo.address:
-            raise SigningError(
-                FailureType.DataError, "Both address and address_n provided."
-            )
+            raise wire.DataError("Both address and address_n provided.")
         if not txo.address_n and not txo.address:
-            raise SigningError(FailureType.DataError, "Missing address")
+            raise wire.DataError("Missing address")
 
     _sanitize_decred(txo, coin)
 
@@ -312,7 +287,6 @@ def _sanitize_decred(
             tx.decred_script_version = 0
     else:
         if tx.decred_script_version is not None:
-            raise SigningError(
-                FailureType.DataError,
-                "Decred details provided but Decred coin not specified.",
+            raise wire.DataError(
+                "Decred details provided but Decred coin not specified."
             )
