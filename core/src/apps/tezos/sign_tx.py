@@ -9,12 +9,12 @@ from trezor.messages.TezosSignedTx import TezosSignedTx
 from apps.common import paths
 from apps.common.seed import with_slip44_keychain
 from apps.common.writers import write_bytes_unchecked, write_uint8, write_uint32_be
-from apps.tezos import CURVE, SLIP44, helpers, layout
+from apps.tezos import CURVE, SLIP44_ID, helpers, layout
 
 PROPOSAL_LENGTH = const(32)
 
 
-@with_slip44_keychain(SLIP44, CURVE, allow_testnet=True)
+@with_slip44_keychain(SLIP44_ID, CURVE, allow_testnet=True)
 async def sign_tx(ctx, msg, keychain):
     await paths.validate_path(
         ctx, helpers.validate_full_path, keychain, msg.address_n, CURVE

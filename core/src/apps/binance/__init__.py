@@ -2,7 +2,7 @@ from trezor import wire
 from trezor.messages import MessageType
 
 CURVE = "secp256k1"
-SLIP44 = 714
+SLIP44_ID = 714
 
 
 def boot() -> None:

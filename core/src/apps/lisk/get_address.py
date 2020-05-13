@@ -5,10 +5,10 @@ from .helpers import get_address_from_public_key, validate_full_path
 from apps.common import paths
 from apps.common.layout import address_n_to_str, show_address, show_qr
 from apps.common.seed import with_slip44_keychain
-from apps.lisk import CURVE, SLIP44
+from apps.lisk import CURVE, SLIP44_ID
 
 
-@with_slip44_keychain(SLIP44, CURVE, allow_testnet=True)
+@with_slip44_keychain(SLIP44_ID, CURVE, allow_testnet=True)
 async def get_address(ctx, msg, keychain):
     await paths.validate_path(ctx, validate_full_path, keychain, msg.address_n, CURVE)
 

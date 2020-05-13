@@ -5,7 +5,7 @@ from trezor.messages.EosPublicKey import EosPublicKey
 
 from apps.common import paths
 from apps.common.seed import Keychain, with_slip44_keychain
-from apps.eos import CURVE, SLIP44
+from apps.eos import CURVE, SLIP44_ID
 from apps.eos.helpers import public_key_to_wif, validate_full_path
 from apps.eos.layout import require_get_public_key
 
@@ -21,7 +21,7 @@ def _get_public_key(node: bip32.HDNode) -> Tuple[str, bytes]:
     return wif, public_key
 
 
-@with_slip44_keychain(SLIP44, CURVE)
+@with_slip44_keychain(SLIP44_ID, CURVE)
 async def get_public_key(
     ctx: wire.Context, msg: EosGetPublicKey, keychain: Keychain
 ) -> EosPublicKey:

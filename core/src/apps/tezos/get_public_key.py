@@ -7,10 +7,10 @@ from trezor.utils import chunks
 from apps.common import paths, seed
 from apps.common.confirm import require_confirm
 from apps.common.seed import with_slip44_keychain
-from apps.tezos import CURVE, SLIP44, helpers
+from apps.tezos import CURVE, SLIP44_ID, helpers
 
 
-@with_slip44_keychain(SLIP44, CURVE, allow_testnet=True)
+@with_slip44_keychain(SLIP44_ID, CURVE, allow_testnet=True)
 async def get_public_key(ctx, msg, keychain):
     await paths.validate_path(
         ctx, helpers.validate_full_path, keychain, msg.address_n, CURVE

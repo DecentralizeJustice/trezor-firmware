@@ -9,11 +9,11 @@ from trezor.wire import ProcessError
 
 from apps.common import paths, seed
 from apps.common.seed import with_slip44_keychain
-from apps.stellar import CURVE, SLIP44, consts, helpers, layout, writers
+from apps.stellar import CURVE, SLIP44_ID, consts, helpers, layout, writers
 from apps.stellar.operations import process_operation
 
 
-@with_slip44_keychain(SLIP44, CURVE, allow_testnet=True)
+@with_slip44_keychain(SLIP44_ID, CURVE, allow_testnet=True)
 async def sign_tx(ctx, msg: StellarSignTx, keychain):
     await paths.validate_path(
         ctx, helpers.validate_full_path, keychain, msg.address_n, CURVE

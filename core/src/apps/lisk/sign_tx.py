@@ -9,11 +9,11 @@ from trezor.utils import HashWriter
 
 from apps.common import paths
 from apps.common.seed import with_slip44_keychain
-from apps.lisk import CURVE, SLIP44, layout
+from apps.lisk import CURVE, SLIP44_ID, layout
 from apps.lisk.helpers import get_address_from_public_key, validate_full_path
 
 
-@with_slip44_keychain(SLIP44, CURVE, allow_testnet=True)
+@with_slip44_keychain(SLIP44_ID, CURVE, allow_testnet=True)
 async def sign_tx(ctx, msg, keychain):
     await paths.validate_path(ctx, validate_full_path, keychain, msg.address_n, CURVE)
 
