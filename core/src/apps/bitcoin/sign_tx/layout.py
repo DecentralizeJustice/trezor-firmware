@@ -33,7 +33,7 @@ async def confirm_output(
 ) -> bool:
     from trezor.ui.text import Text
     from apps.common.confirm import confirm
-    from apps.bitcoin.sign_tx import addresses, omni
+    from . import addresses, omni
 
     if output.script_type == OutputScriptType.PAYTOOPRETURN:
         data = output.op_return_data

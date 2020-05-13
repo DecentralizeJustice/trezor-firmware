@@ -2,8 +2,9 @@ from trezor.crypto import bip32
 from trezor.messages import InputScriptType
 from trezor.messages.Address import Address
 
-from apps.bitcoin.sign_tx import addresses
-from apps.bitcoin.sign_tx.multisig import multisig_pubkey_index
+from .sign_tx import addresses
+from .sign_tx.multisig import multisig_pubkey_index
+
 from apps.common import coins
 from apps.common.layout import address_n_to_str, show_address, show_qr, show_xpub
 from apps.common.paths import validate_path

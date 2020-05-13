@@ -6,10 +6,8 @@ from trezor.messages.ECDHSessionKey import ECDHSessionKey
 from trezor.ui.text import Text
 from trezor.utils import chunks
 
-from apps.bitcoin.sign_identity import (
-    serialize_identity,
-    serialize_identity_without_proto,
-)
+from .sign_identity import serialize_identity, serialize_identity_without_proto
+
 from apps.common import HARDENED
 from apps.common.confirm import require_confirm
 

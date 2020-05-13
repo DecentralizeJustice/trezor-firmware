@@ -11,16 +11,10 @@ from trezor.messages.TxOutputBinType import TxOutputBinType
 from trezor.messages.TxOutputType import TxOutputType
 from trezor.utils import HashWriter, ensure
 
-from apps.bitcoin.sign_tx import (
-    addresses,
-    helpers,
-    multisig,
-    progress,
-    scripts,
-    writers,
-)
-from apps.bitcoin.sign_tx.bitcoin import Bitcoin
-from apps.bitcoin.sign_tx.common import ecdsa_sign
+from . import addresses, helpers, multisig, progress, scripts, writers
+from .bitcoin import Bitcoin
+from .common import ecdsa_sign
+
 from apps.common import coininfo, seed
 
 DECRED_SERIALIZE_FULL = const(0 << 16)

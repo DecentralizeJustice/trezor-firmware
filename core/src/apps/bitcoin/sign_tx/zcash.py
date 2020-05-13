@@ -9,11 +9,11 @@ from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
 from trezor.utils import HashWriter, ensure
 
-from apps.bitcoin.sign_tx import helpers
-from apps.bitcoin.sign_tx.bitcoinlike import Bitcoinlike
-from apps.bitcoin.sign_tx.multisig import multisig_get_pubkeys
-from apps.bitcoin.sign_tx.scripts import output_script_multisig, output_script_p2pkh
-from apps.bitcoin.sign_tx.writers import (
+from . import helpers
+from .bitcoinlike import Bitcoinlike
+from .multisig import multisig_get_pubkeys
+from .scripts import output_script_multisig, output_script_p2pkh
+from .writers import (
     TX_HASH_SIZE,
     get_tx_hash,
     write_bytes_fixed,
@@ -23,12 +23,13 @@ from apps.bitcoin.sign_tx.writers import (
     write_uint64,
     write_varint,
 )
+
 from apps.common.coininfo import CoinInfo
 from apps.common.seed import Keychain
 
 if False:
     from typing import Union
-    from apps.bitcoin.sign_tx.writers import Writer
+    from .writers import Writer
 
 OVERWINTERED = const(0x80000000)
 
