@@ -6,8 +6,8 @@ from trezor.messages import OutputScriptType
 from trezor.crypto import bip32, bip39
 
 from apps.common import coins
-from apps.wallet.sign_tx.tx_weight import *
-from apps.wallet.sign_tx.scripts import output_derive_script
+from apps.bitcoin.sign_tx.tx_weight import *
+from apps.bitcoin.sign_tx.scripts import output_derive_script
 
 
 class TestCalculateTxWeight(unittest.TestCase):

@@ -16,7 +16,7 @@ from trezor.messages import OutputScriptType
 
 from apps.common import coins
 from apps.common.seed import Keychain
-from apps.wallet.sign_tx import bitcoin, helpers
+from apps.bitcoin.sign_tx import bitcoin, helpers
 
 
 EMPTY_SERIALIZED = TxRequestSerializedType(serialized_tx=bytearray())

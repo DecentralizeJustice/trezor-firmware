@@ -3,10 +3,10 @@ from trezor.crypto.curve import secp256k1
 from trezor.messages.InputScriptType import SPENDADDRESS, SPENDP2SHWITNESS, SPENDWITNESS
 from trezor.messages.MessageSignature import MessageSignature
 
+from apps.bitcoin.sign_tx.addresses import get_address, validate_full_path
 from apps.common import coins
 from apps.common.paths import validate_path
 from apps.common.signverify import message_digest, require_confirm_sign_message
-from apps.wallet.sign_tx.addresses import get_address, validate_full_path
 
 
 async def sign_message(ctx, msg, keychain):

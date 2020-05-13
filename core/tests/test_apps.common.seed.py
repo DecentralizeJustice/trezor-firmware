@@ -1,7 +1,7 @@
 from common import *
 from apps.common import HARDENED, coins
 from apps.common.seed import Keychain, Slip21Node, _path_hardened
-from apps.wallet.sign_tx import scripts, addresses
+from apps.bitcoin.sign_tx import scripts, addresses
 from trezor import wire
 from trezor.crypto import bip39
 from trezor.crypto.curve import secp256k1

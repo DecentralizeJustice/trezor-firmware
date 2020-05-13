@@ -5,7 +5,7 @@ from trezor.messages.HDNodeType import HDNodeType
 from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.utils import HashWriter
 
-from apps.wallet.sign_tx.writers import write_bytes_fixed, write_uint32
+from apps.bitcoin.sign_tx.writers import write_bytes_fixed, write_uint32
 
 if False:
     from typing import List

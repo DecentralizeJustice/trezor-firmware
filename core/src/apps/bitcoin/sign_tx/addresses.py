@@ -7,13 +7,11 @@ from trezor.messages import InputScriptType
 from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.utils import ensure
 
+from .multisig import multisig_get_pubkeys, multisig_pubkey_index
+from .scripts import output_script_multisig, output_script_native_p2wpkh_or_p2wsh
+
 from apps.common import HARDENED, address_type, paths
 from apps.common.coininfo import CoinInfo
-from apps.wallet.sign_tx.multisig import multisig_get_pubkeys, multisig_pubkey_index
-from apps.wallet.sign_tx.scripts import (
-    output_script_multisig,
-    output_script_native_p2wpkh_or_p2wsh,
-)
 
 if False:
     from typing import List

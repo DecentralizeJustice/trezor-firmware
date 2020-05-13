@@ -6,25 +6,26 @@ from trezor.messages.MultisigRedeemScriptType import MultisigRedeemScriptType
 from trezor.messages.TxInputType import TxInputType
 from trezor.messages.TxOutputType import TxOutputType
 
-from apps.common import address_type
-from apps.common.coininfo import CoinInfo
-from apps.common.writers import empty_bytearray
-from apps.wallet.sign_tx import addresses
-from apps.wallet.sign_tx.multisig import (
+from . import addresses
+from .multisig import (
     multisig_get_pubkey_count,
     multisig_get_pubkeys,
     multisig_pubkey_index,
 )
-from apps.wallet.sign_tx.writers import (
+from .writers import (
     write_bytes_fixed,
     write_bytes_unchecked,
     write_op_push,
     write_varint,
 )
 
+from apps.common import address_type
+from apps.common.coininfo import CoinInfo
+from apps.common.writers import empty_bytearray
+
 if False:
     from typing import List, Optional
-    from apps.wallet.sign_tx.writers import Writer
+    from .writers import Writer
 
 
 def input_derive_script(

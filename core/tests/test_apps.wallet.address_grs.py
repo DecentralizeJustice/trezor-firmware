@@ -1,7 +1,7 @@
 from common import *
 
-from apps.wallet.sign_tx.common import *
-from apps.wallet.sign_tx.addresses import *
+from apps.bitcoin.sign_tx.common import *
+from apps.bitcoin.sign_tx.addresses import *
 from apps.common import coins
 from trezor.crypto import bip32, bip39
 

@@ -4,11 +4,11 @@ from trezor.messages.SignTx import SignTx
 from trezor.messages.TxAck import TxAck
 from trezor.messages.TxRequest import TxRequest
 
+from apps.bitcoin.sign_tx import bitcoin, helpers, layout, progress
 from apps.common import coins, paths, seed
-from apps.wallet.sign_tx import bitcoin, helpers, layout, progress
 
 if not utils.BITCOIN_ONLY:
-    from apps.wallet.sign_tx import bitcoinlike, decred, zcash
+    from apps.bitcoin.sign_tx import bitcoinlike, decred, zcash
 
 if False:
     from typing import Type, Union

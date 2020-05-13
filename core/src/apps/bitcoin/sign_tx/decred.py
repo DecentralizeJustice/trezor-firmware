@@ -11,10 +11,17 @@ from trezor.messages.TxOutputBinType import TxOutputBinType
 from trezor.messages.TxOutputType import TxOutputType
 from trezor.utils import HashWriter, ensure
 
+from apps.bitcoin.sign_tx import (
+    addresses,
+    helpers,
+    multisig,
+    progress,
+    scripts,
+    writers,
+)
+from apps.bitcoin.sign_tx.bitcoin import Bitcoin
+from apps.bitcoin.sign_tx.common import ecdsa_sign
 from apps.common import coininfo, seed
-from apps.wallet.sign_tx import addresses, helpers, multisig, progress, scripts, writers
-from apps.wallet.sign_tx.bitcoin import Bitcoin
-from apps.wallet.sign_tx.common import ecdsa_sign
 
 DECRED_SERIALIZE_FULL = const(0 << 16)
 DECRED_SERIALIZE_NO_WITNESS = const(1 << 16)

@@ -2,12 +2,12 @@ from common import *
 from trezor.crypto import bip32, bip39
 from trezor.utils import HashWriter
 
-from apps.wallet.sign_tx.addresses import validate_full_path, validate_path_for_bitcoin_public_key
+from apps.bitcoin.sign_tx.addresses import validate_full_path, validate_path_for_bitcoin_public_key
 from apps.common.paths import HARDENED
 from apps.common import coins
-from apps.wallet.sign_tx import scripts
-from apps.wallet.sign_tx.addresses import *
-from apps.wallet.sign_tx.writers import *
+from apps.bitcoin.sign_tx import scripts
+from apps.bitcoin.sign_tx.addresses import *
+from apps.bitcoin.sign_tx.writers import *
 
 
 def node_derive(root, path):

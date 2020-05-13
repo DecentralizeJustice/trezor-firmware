@@ -1,6 +1,6 @@
 from common import *
 
-from apps.wallet.sign_tx.omni import is_valid, parse
+from apps.bitcoin.sign_tx.omni import is_valid, parse
 
 class TestSignTxOmni(unittest.TestCase):
 

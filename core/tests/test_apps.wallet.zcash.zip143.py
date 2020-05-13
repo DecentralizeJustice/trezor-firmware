@@ -5,10 +5,10 @@ from trezor.messages.TxInputType import TxInputType
 from trezor.messages.TxOutputBinType import TxOutputBinType
 
 from apps.common import coins
-from apps.wallet.sign_tx.writers import get_tx_hash
+from apps.bitcoin.sign_tx.writers import get_tx_hash
 
 if not utils.BITCOIN_ONLY:
-    from apps.wallet.sign_tx.zcash import Overwintered
+    from apps.bitcoin.sign_tx.zcash import Overwintered
 
 
 # test vectors inspired from https://github.com/zcash-hackworks/zcash-test-vectors/blob/master/zip_0143.py

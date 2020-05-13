@@ -5,7 +5,7 @@ from trezor.messages.TxInputType import TxInputType
 from trezor.messages.TxOutputType import TxOutputType
 from trezor.utils import ensure
 
-from apps.wallet.sign_tx import multisig
+from apps.bitcoin.sign_tx import multisig
 
 if False:
     from typing import Any, Union

@@ -1,8 +1,8 @@
 from common import *
 
-from apps.wallet.sign_tx.scripts import output_derive_script
-from apps.wallet.sign_tx.bitcoin import Bitcoin
-from apps.wallet.sign_tx.writers import get_tx_hash
+from apps.bitcoin.sign_tx.scripts import output_derive_script
+from apps.bitcoin.sign_tx.bitcoin import Bitcoin
+from apps.bitcoin.sign_tx.writers import get_tx_hash
 from apps.common import coins
 from trezor.messages.SignTx import SignTx
 from trezor.messages.TxInputType import TxInputType

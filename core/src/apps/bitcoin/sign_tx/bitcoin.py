@@ -14,8 +14,7 @@ from trezor.messages.TxRequestDetailsType import TxRequestDetailsType
 from trezor.messages.TxRequestSerializedType import TxRequestSerializedType
 from trezor.utils import HashWriter, ensure
 
-from apps.common import coininfo, seed
-from apps.wallet.sign_tx import (
+from apps.bitcoin.sign_tx import (
     addresses,
     helpers,
     multisig,
@@ -24,8 +23,12 @@ from apps.wallet.sign_tx import (
     tx_weight,
     writers,
 )
-from apps.wallet.sign_tx.common import ecdsa_sign
-from apps.wallet.sign_tx.matchcheck import MultisigFingerprintChecker, WalletPathChecker
+from apps.bitcoin.sign_tx.common import ecdsa_sign
+from apps.bitcoin.sign_tx.matchcheck import (
+    MultisigFingerprintChecker,
+    WalletPathChecker,
+)
+from apps.common import coininfo, seed
 
 if False:
     from typing import Set, Tuple, Union

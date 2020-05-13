@@ -5,7 +5,7 @@ from trezor.messages import InputScriptType
 
 from apps.common import coins
 from apps.common.seed import Keychain
-from apps.wallet.sign_tx import writers
+from apps.bitcoin.sign_tx import writers
 
 
 class TestWriters(unittest.TestCase):

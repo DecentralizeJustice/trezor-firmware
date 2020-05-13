@@ -6,8 +6,8 @@ from trezor.messages.SignTx import SignTx
 from trezor.messages.TransactionType import TransactionType
 from trezor.messages.TxInputType import TxInputType
 
-from apps.wallet.sign_tx import helpers, multisig, writers
-from apps.wallet.sign_tx.bitcoin import Bitcoin, input_is_nonsegwit
+from apps.bitcoin.sign_tx import helpers, multisig, writers
+from apps.bitcoin.sign_tx.bitcoin import Bitcoin, input_is_nonsegwit
 
 if False:
     from typing import Union
