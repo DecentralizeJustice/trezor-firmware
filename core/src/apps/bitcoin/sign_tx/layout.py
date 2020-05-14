@@ -10,7 +10,7 @@ from trezor.utils import chunks
 from apps.common import coininfo
 
 if False:
-    from typing import Iterator, List
+    from typing import Iterator
     from trezor import wire
 
 _LOCKTIME_TIMESTAMP_MIN_VALUE = const(500000000)
@@ -30,9 +30,9 @@ def split_op_return(data: str) -> Iterator[str]:
 
 async def confirm_output(
     ctx: wire.Context, output: TxOutputType, coin: coininfo.CoinInfo
-) -> bool:
+) -> None:
     from trezor.ui.text import Text
-    from apps.common.confirm import confirm
+    from apps.common.confirm import require_confirm
     from . import addresses, omni
 
     if output.script_type == OutputScriptType.PAYTOOPRETURN:
@@ -54,50 +54,39 @@ async def confirm_output(
         text = Text("Confirm sending", ui.ICON_SEND, ui.GREEN)
         text.normal(format_coin_amount(output.amount, coin) + " to")
         text.mono(*split_address(address_short))
-    return await confirm(ctx, text, ButtonRequestType.ConfirmOutput)
+    await require_confirm(ctx, text, ButtonRequestType.ConfirmOutput)
 
 
 async def confirm_total(
     ctx: wire.Context, spending: int, fee: int, coin: coininfo.CoinInfo
-) -> bool:
+) -> None:
     from trezor.ui.text import Text
-    from apps.common.confirm import hold_to_confirm
+    from apps.common.confirm import require_hold_to_confirm
 
     text = Text("Confirm transaction", ui.ICON_SEND, ui.GREEN)
     text.normal("Total amount:")
     text.bold(format_coin_amount(spending, coin))
     text.normal("including fee:")
     text.bold(format_coin_amount(fee, coin))
-    return await hold_to_confirm(ctx, text, ButtonRequestType.SignTx)
+    await require_hold_to_confirm(ctx, text, ButtonRequestType.SignTx)
 
 
 async def confirm_feeoverthreshold(
     ctx: wire.Context, fee: int, coin: coininfo.CoinInfo
-) -> bool:
+) -> None:
     from trezor.ui.text import Text
-    from apps.common.confirm import confirm
+    from apps.common.confirm import require_confirm
 
     text = Text("High fee", ui.ICON_SEND, ui.GREEN)
     text.normal("The fee of")
     text.bold(format_coin_amount(fee, coin))
     text.normal("is unexpectedly high.", "Continue?")
-    return await confirm(ctx, text, ButtonRequestType.FeeOverThreshold)
+    await require_confirm(ctx, text, ButtonRequestType.FeeOverThreshold)
 
 
-async def confirm_foreign_address(
-    ctx: wire.Context, address_n: List[int], coin: coininfo.CoinInfo
-) -> bool:
+async def confirm_nondefault_locktime(ctx: wire.Context, lock_time: int) -> None:
     from trezor.ui.text import Text
-    from apps.common.confirm import confirm
-
-    text = Text("Confirm sending", ui.ICON_SEND, ui.RED)
-    text.normal("Trying to spend", "coins from another chain.", "Continue?")
-    return await confirm(ctx, text, ButtonRequestType.SignTx)
-
-
-async def confirm_nondefault_locktime(ctx: wire.Context, lock_time: int) -> bool:
-    from trezor.ui.text import Text
-    from apps.common.confirm import confirm
+    from apps.common.confirm import require_confirm
 
     text = Text("Confirm locktime", ui.ICON_SEND, ui.GREEN)
     text.normal("Locktime for this transaction is set to")
@@ -107,4 +96,4 @@ async def confirm_nondefault_locktime(ctx: wire.Context, lock_time: int) -> bool
         text.normal("timestamp:")
     text.bold(str(lock_time))
     text.normal("Continue?")
-    return await confirm(ctx, text, ButtonRequestType.SignTx)
+    await require_confirm(ctx, text, ButtonRequestType.SignTx)

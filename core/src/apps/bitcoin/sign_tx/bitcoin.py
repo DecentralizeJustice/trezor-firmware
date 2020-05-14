@@ -130,17 +130,10 @@ class Bitcoin:
 
         # fee > (coin.maxfee per byte * tx size)
         if fee > (self.coin.maxfee_kb / 1000) * (self.weight.get_total() / 4):
-            if not await helpers.confirm_feeoverthreshold(fee, self.coin):
-                raise wire.ActionCancelled("Signing cancelled")
-
+            await helpers.confirm_feeoverthreshold(fee, self.coin)
         if self.tx.lock_time > 0:
-            if not await helpers.confirm_nondefault_locktime(self.tx.lock_time):
-                raise wire.ActionCancelled("Locktime cancelled")
-
-        if not await helpers.confirm_total(
-            self.total_in - self.change_out, fee, self.coin
-        ):
-            raise wire.ActionCancelled("Total cancelled")
+            await helpers.confirm_nondefault_locktime(self.tx.lock_time)
+        await helpers.confirm_total(self.total_in - self.change_out, fee, self.coin)
 
     async def step4_serialize_inputs(self) -> None:
         self.write_tx_header(self.serialized_tx, self.tx, bool(self.segwit))
@@ -207,8 +200,8 @@ class Bitcoin:
         if self.change_out == 0 and self.output_is_change(txo):
             # output is change and does not need confirmation
             self.change_out = txo.amount
-        elif not await helpers.confirm_output(txo, self.coin):
-            raise wire.ActionCancelled("Output cancelled")
+        else:
+            await helpers.confirm_output(txo, self.coin)
 
         self.write_tx_output(self.h_confirmed, txo, script_pubkey)
         self.hash143_add_output(txo, script_pubkey)
