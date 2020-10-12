@@ -23,6 +23,7 @@ from ..tx_cache import TxCache
 
 B = proto.ButtonRequestType
 TX_API = TxCache("Groestlcoin")
+TX_API_TESTNET = TxCache("Groestlcoin Testnet")
 
 TXHASH_cb74c8 = bytes.fromhex(
     "cb74c8478c5814742c87cffdb4a21231869888f8042fb07a90e015a9db1f9d4a"
@@ -41,6 +42,7 @@ class TestMsgSigntxGRS:
         inp1 = proto.TxInputType(
             # FXHDsC5ZqWQHkDmShzgRVZ1MatpWhwxTAA
             address_n=parse_path("44'/17'/0'/0/2"),
+            amount=210016,
             prev_hash=TXHASH_cb74c8,
             prev_index=0,
         )
@@ -61,6 +63,7 @@ class TestMsgSigntxGRS:
         inp1 = proto.TxInputType(
             # FXHDsC5ZqWQHkDmShzgRVZ1MatpWhwxTAA
             address_n=parse_path("44'/17'/0'/0/2"),
+            amount=210016,
             prev_hash=TXHASH_cb74c8,
             prev_index=0,
         )
@@ -99,9 +102,13 @@ class TestMsgSigntxGRS:
             amount=123456789 - 11000 - 12300000,
             script_type=proto.OutputScriptType.PAYTOADDRESS,
         )
-        details = proto.SignTx(lock_time=650756)
         _, serialized_tx = btc.sign_tx(
-            client, "Groestlcoin Testnet", [inp1], [out1, out2], details=details
+            client,
+            "Groestlcoin Testnet",
+            [inp1],
+            [out1, out2],
+            lock_time=650756,
+            prev_txes=TX_API_TESTNET,
         )
         assert (
             serialized_tx.hex()
@@ -128,9 +135,13 @@ class TestMsgSigntxGRS:
             script_type=proto.OutputScriptType.PAYTOP2SHWITNESS,
             amount=123456789 - 11000 - 12300000,
         )
-        details = proto.SignTx(lock_time=650756)
         _, serialized_tx = btc.sign_tx(
-            client, "Groestlcoin Testnet", [inp1], [out1, out2], details=details
+            client,
+            "Groestlcoin Testnet",
+            [inp1],
+            [out1, out2],
+            lock_time=650756,
+            prev_txes=TX_API_TESTNET,
         )
         assert (
             serialized_tx.hex()
@@ -156,9 +167,13 @@ class TestMsgSigntxGRS:
             script_type=proto.OutputScriptType.PAYTOADDRESS,
             amount=12300000 - 11000 - 5000000,
         )
-        details = proto.SignTx(lock_time=650713)
         _, serialized_tx = btc.sign_tx(
-            client, "Groestlcoin Testnet", [inp1], [out1, out2], details=details
+            client,
+            "Groestlcoin Testnet",
+            [inp1],
+            [out1, out2],
+            lock_time=650713,
+            prev_txes=TX_API_TESTNET,
         )
         assert (
             serialized_tx.hex()
@@ -184,9 +199,13 @@ class TestMsgSigntxGRS:
             script_type=proto.OutputScriptType.PAYTOWITNESS,
             amount=12300000 - 11000 - 5000000,
         )
-        details = proto.SignTx(lock_time=650713)
         _, serialized_tx = btc.sign_tx(
-            client, "Groestlcoin Testnet", [inp1], [out1, out2], details=details
+            client,
+            "Groestlcoin Testnet",
+            [inp1],
+            [out1, out2],
+            lock_time=650713,
+            prev_txes=TX_API_TESTNET,
         )
         assert (
             serialized_tx.hex()

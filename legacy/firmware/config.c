@@ -400,6 +400,12 @@ void config_init(void) {
   storage_init(&protectPinUiCallback, HW_ENTROPY_DATA, HW_ENTROPY_LEN);
   memzero(HW_ENTROPY_DATA, sizeof(HW_ENTROPY_DATA));
 
+  // imported xprv is not supported anymore so we set initialized to false
+  // if no mnemonic is present
+  if (config_isInitialized() && !config_hasMnemonic()) {
+    config_set_bool(KEY_INITIALIZED, false);
+  }
+
   // Auto-unlock storage if no PIN is set.
   if (storage_is_unlocked() == secfalse && storage_has_pin() == secfalse) {
     storage_unlock(PIN_EMPTY, NULL);
@@ -576,9 +582,13 @@ static void get_root_node_callback(uint32_t iter, uint32_t total) {
 }
 
 const uint8_t *config_getSeed(void) {
+  if (activeSessionCache == NULL) {
+    fsm_sendFailure(FailureType_Failure_InvalidSession, "Invalid session");
+    return NULL;
+  }
+
   // root node is properly cached
-  if ((activeSessionCache != NULL) &&
-      (activeSessionCache->seedCached == sectrue)) {
+  if (activeSessionCache->seedCached == sectrue) {
     return activeSessionCache->seed;
   }
 
@@ -591,6 +601,30 @@ const uint8_t *config_getSeed(void) {
       memzero(passphrase, sizeof(passphrase));
       return NULL;
     }
+    // passphrase is used - confirm on the display
+    if (passphrase[0] != 0) {
+      layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                        _("Access hidden wallet?"), NULL,
+                        _("Next screen will show"), _("the passphrase!"), NULL,
+                        NULL);
+      if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
+        memzero(mnemonic, sizeof(mnemonic));
+        memzero(passphrase, sizeof(passphrase));
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        _("Passphrase dismissed"));
+        layoutHome();
+        return NULL;
+      }
+      layoutShowPassphrase(passphrase);
+      if (!protectButton(ButtonRequestType_ButtonRequest_Other, false)) {
+        memzero(mnemonic, sizeof(mnemonic));
+        memzero(passphrase, sizeof(passphrase));
+        fsm_sendFailure(FailureType_Failure_ActionCancelled,
+                        _("Passphrase dismissed"));
+        layoutHome();
+        return NULL;
+      }
+    }
     // if storage was not imported (i.e. it was properly generated or recovered)
     bool imported = false;
     config_get_bool(KEY_IMPORTED, &imported);
@@ -602,10 +636,6 @@ const uint8_t *config_getSeed(void) {
       }
     }
     char oldTiny = usbTiny(1);
-    if (activeSessionCache == NULL) {
-      // this should not happen if the Host behaves and sends Initialize first
-      session_startSession(NULL);
-    }
     mnemonic_to_seed(mnemonic, passphrase, activeSessionCache->seed,
                      get_root_node_callback);  // BIP-0039
     memzero(mnemonic, sizeof(mnemonic));
@@ -713,6 +743,8 @@ bool config_getMnemonicBytes(uint8_t *dest, uint16_t dest_size,
 bool config_getMnemonic(char *dest, uint16_t dest_size) {
   return sectrue == config_get_string(KEY_MNEMONIC, dest, dest_size);
 }
+
+bool config_hasMnemonic(void) { return sectrue == storage_has(KEY_MNEMONIC); }
 
 /* Check whether mnemonic matches storage. The mnemonic must be
  * a null-terminated string.
@@ -850,6 +882,12 @@ uint8_t *session_startSession(const uint8_t *received_session_id) {
   return activeSessionCache->id;
 }
 
+void session_endCurrentSession(void) {
+  if (activeSessionCache == NULL) return;
+  session_clearCache(activeSessionCache);
+  activeSessionCache = NULL;
+}
+
 bool session_isUnlocked(void) { return sectrue == storage_is_unlocked(); }
 
 bool config_isInitialized(void) {
@@ -929,8 +967,7 @@ uint32_t config_getAutoLockDelayMs() {
 }
 
 void config_setAutoLockDelayMs(uint32_t auto_lock_delay_ms) {
-  const uint32_t min_delay_ms = 10 * 1000U;  // 10 seconds
-  auto_lock_delay_ms = MAX(auto_lock_delay_ms, min_delay_ms);
+  auto_lock_delay_ms = MAX(auto_lock_delay_ms, MIN_AUTOLOCK_DELAY_MS);
   if (sectrue == storage_set(KEY_AUTO_LOCK_DELAY_MS, &auto_lock_delay_ms,
                              sizeof(auto_lock_delay_ms))) {
     autoLockDelayMs = auto_lock_delay_ms;

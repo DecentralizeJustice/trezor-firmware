@@ -47,6 +47,7 @@ firmwares.
 
 #### Notable third-parties
 
+- Trezor Password Manager https://github.com/trezor/trezor-password-manager
 - Exodus (closed source)
 - MagnumWallet (closed source)
 - CoinMate (closed source)
@@ -62,3 +63,12 @@ firmwares.
 - web3-react https://github.com/NoahZinsmeister/web3-react
 - KyberSwap https://github.com/KyberNetwork/KyberSwap
 - Balance Manager https://github.com/balance-io/balance-manager
+- www.coinpayments.net
+- www.bancor.network
+- dubiex.com
+- www.coinmap.org
+- mydashwallet.org
+- app.totle.com
+- manager.balance.io
+- faa.st
+- beta.shapeshift.com

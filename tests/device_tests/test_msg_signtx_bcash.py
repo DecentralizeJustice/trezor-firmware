@@ -21,7 +21,7 @@ from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import H_, parse_path
 
 from ..tx_cache import TxCache
-from .signtx import request_finished, request_input, request_output
+from .signtx import request_finished, request_input, request_meta, request_output
 
 B = proto.ButtonRequestType
 TX_API = TxCache("Bcash")
@@ -70,6 +70,10 @@ class TestMsgSigntxBch:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_bc37c2),
+                    request_input(0, TXHASH_bc37c2),
+                    request_output(0, TXHASH_bc37c2),
+                    request_input(0),
                     request_output(0),
                     request_output(1),
                     request_finished(),
@@ -114,6 +118,16 @@ class TestMsgSigntxBch:
                     request_output(0),
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
+                    request_input(0),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
+                    request_input(1),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
                     request_input(0),
                     request_input(1),
                     request_output(0),
@@ -160,6 +174,16 @@ class TestMsgSigntxBch:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
+                    request_input(1),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
+                    request_input(0),
                     request_input(1),
                     request_output(0),
                     request_finished(),
@@ -173,81 +197,6 @@ class TestMsgSigntxBch:
             serialized_tx.hex()
             == "01000000022c06cf6f215c5cbfd7caa8e71b1b32630cabf1f816a4432815b037b277852e50000000006a47304402207a2a955f1cb3dc5f03f2c82934f55654882af4e852e5159639f6349e9386ec4002205fb8419dce4e648eae8f67bc4e369adfb130a87d2ea2d668f8144213b12bb457412103174c61e9c5362507e8061e28d2c0ce3d4df4e73f3535ae0b12f37809e0f92d2dffffffff2c06cf6f215c5cbfd7caa8e71b1b32630cabf1f816a4432815b037b277852e50010000006a473044022062151cf960b71823bbe68c7ed2c2a93ad1b9706a30255fddb02fcbe056d8c26102207bad1f0872bc5f0cfaf22e45c925c35d6c1466e303163b75cb7688038f1a5541412102595caf9aeb6ffdd0e82b150739a83297358b9a77564de382671056ad9e5b8c58ffffffff0170861d00000000001976a91434e9cec317896e818619ab7dc99d2305216ff4af88ac00000000"
         )
-
-    def test_attack_amount(self, client):
-        inp1 = proto.TxInputType(
-            address_n=parse_path("44'/145'/0'/1/0"),
-            # bitcoincash:qzc5q87w069lzg7g3gzx0c8dz83mn7l02scej5aluw
-            amount=300,
-            prev_hash=TXHASH_502e85,
-            prev_index=0,
-            script_type=proto.InputScriptType.SPENDADDRESS,
-        )
-        inp2 = proto.TxInputType(
-            address_n=parse_path("44'/145'/0'/0/1"),
-            # bitcoincash:qr23ajjfd9wd73l87j642puf8cad20lfmqdgwvpat4
-            amount=70,
-            prev_hash=TXHASH_502e85,
-            prev_index=1,
-            script_type=proto.InputScriptType.SPENDADDRESS,
-        )
-        out1 = proto.TxOutputType(
-            address="bitcoincash:qq6wnnkrz7ykaqvxrx4hmjvayvzjzml54uyk76arx4",
-            amount=200,
-            script_type=proto.OutputScriptType.PAYTOADDRESS,
-        )
-
-        # test if passes without modifications
-        with client:
-            client.set_expected_responses(
-                [
-                    request_input(0),
-                    request_input(1),
-                    request_output(0),
-                    proto.ButtonRequest(code=B.ConfirmOutput),
-                    proto.ButtonRequest(code=B.SignTx),
-                    request_input(0),
-                    request_input(1),
-                    request_output(0),
-                    request_finished(),
-                ]
-            )
-            btc.sign_tx(client, "Bcash", [inp1, inp2], [out1], prev_txes=TX_API)
-
-        run_attack = True
-
-        def attack_processor(msg):
-            nonlocal run_attack
-
-            if run_attack and msg.tx.inputs and msg.tx.inputs[0] == inp1:
-                # 300 is lowered to 280 at the first run
-                # the user confirms 280 but the transaction
-                # is spending 300 => larger fee without the user knowing
-                msg.tx.inputs[0].amount = 280
-                run_attack = False
-
-            return msg
-
-        # now fails
-        client.set_filter(proto.TxAck, attack_processor)
-        with client:
-            client.set_expected_responses(
-                [
-                    request_input(0),
-                    request_input(1),
-                    request_output(0),
-                    proto.ButtonRequest(code=B.ConfirmOutput),
-                    proto.ButtonRequest(code=B.SignTx),
-                    request_input(0),
-                    request_input(1),
-                    proto.Failure(),
-                ]
-            )
-
-            with pytest.raises(
-                TrezorFailure, match="Transaction has changed during signing"
-            ):
-                btc.sign_tx(client, "Bcash", [inp1, inp2], [out1], prev_txes=TX_API)
 
     def test_attack_change_input(self, client):
         inp1 = proto.TxInputType(
@@ -268,14 +217,14 @@ class TestMsgSigntxBch:
             script_type=proto.OutputScriptType.PAYTOADDRESS,
         )
 
-        run_attack = False
+        attack_count = 2
 
         def attack_processor(msg):
-            nonlocal run_attack
+            nonlocal attack_count
 
             if msg.tx.inputs and msg.tx.inputs[0] == inp1:
-                if not run_attack:
-                    run_attack = True
+                if attack_count > 0:
+                    attack_count -= 1
                 else:
                     msg.tx.inputs[0].address_n[2] = H_(1)
 
@@ -292,6 +241,10 @@ class TestMsgSigntxBch:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_bc37c2),
+                    request_input(0, TXHASH_bc37c2),
+                    request_output(0, TXHASH_bc37c2),
+                    request_input(0),
                     proto.Failure(code=proto.FailureType.ProcessError),
                 ]
             )
@@ -301,7 +254,9 @@ class TestMsgSigntxBch:
     @pytest.mark.multisig
     def test_send_bch_multisig_wrongchange(self, client):
         nodes = [
-            btc.get_public_node(client, parse_path("48'/145'/%d'" % i)).node
+            btc.get_public_node(
+                client, parse_path(f"48'/145'/{i}'"), coin_name="Bcash"
+            ).node
             for i in range(1, 4)
         ]
 
@@ -355,6 +310,11 @@ class TestMsgSigntxBch:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_f68caf),
+                    request_input(0, TXHASH_f68caf),
+                    request_output(0, TXHASH_f68caf),
+                    request_output(1, TXHASH_f68caf),
+                    request_input(0),
                     request_output(0),
                     request_finished(),
                 ]
@@ -374,7 +334,9 @@ class TestMsgSigntxBch:
     @pytest.mark.multisig
     def test_send_bch_multisig_change(self, client):
         nodes = [
-            btc.get_public_node(client, parse_path("48'/145'/%d'" % i)).node
+            btc.get_public_node(
+                client, parse_path(f"48'/145'/{i}'"), coin_name="Bcash"
+            ).node
             for i in range(1, 4)
         ]
 
@@ -411,6 +373,10 @@ class TestMsgSigntxBch:
                     request_output(1),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_8b6db9),
+                    request_input(0, TXHASH_8b6db9),
+                    request_output(0, TXHASH_8b6db9),
+                    request_input(0),
                     request_output(0),
                     request_output(1),
                     request_finished(),
@@ -445,6 +411,10 @@ class TestMsgSigntxBch:
                     request_output(1),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_8b6db9),
+                    request_input(0, TXHASH_8b6db9),
+                    request_output(0, TXHASH_8b6db9),
+                    request_input(0),
                     request_output(0),
                     request_output(1),
                     request_finished(),
@@ -461,4 +431,63 @@ class TestMsgSigntxBch:
         assert (
             serialized_tx.hex()
             == "0100000001a07660b10df9868df9393c9cf8962bc34f48cb2cea53b0865d2324bab8b96d8b00000000fdfd0000473044022006f239ef1f065a70873ab9d2c81a623a04ec7a37a0ec5299d3c585668f441f49022032b2f9ef13bc61230d14f6d79b9ad1bbebdf47b95e4757e9af1b1dcdf520d3ab41483045022100a05f77bb39515c21c43e6c4ba401f39ed5d409dc3cfcd90f9a8345a08cc4bc8202205faf8f3b0775748278495324fdd60f370460452e4995e546450209ec4804a0f3414c69522102f8ca0d9665af03de32a7c19a167a4f6e97e4e0ed9505f75d11f7a45ab60b1f4d2103263d87cefd687bc15b4ef7801f9f538267b66d46f18e9fccc41d54071cfdd1ce210388568bf42f02298308eb6fa2fa4b446d544600253b4409be27e2c0c1a71c424853aeffffffff02c05d0000000000001976a91400741952f6a6eab5394f366db5cc5a54b0c2429f88acc05d00000000000017a91478574751407449b97f8054be2e40e684ad07d3738700000000"
+        )
+
+    @pytest.mark.skip_t1
+    def test_send_bch_external_presigned(self, client):
+        inp1 = proto.TxInputType(
+            # address_n=parse_path("44'/145'/0'/1/0"),
+            # bitcoincash:qzc5q87w069lzg7g3gzx0c8dz83mn7l02scej5aluw
+            amount=1896050,
+            prev_hash=TXHASH_502e85,
+            prev_index=0,
+            script_type=proto.InputScriptType.EXTERNAL,
+            script_sig=bytes.fromhex(
+                "47304402207a2a955f1cb3dc5f03f2c82934f55654882af4e852e5159639f6349e9386ec4002205fb8419dce4e648eae8f67bc4e369adfb130a87d2ea2d668f8144213b12bb457412103174c61e9c5362507e8061e28d2c0ce3d4df4e73f3535ae0b12f37809e0f92d2d"
+            ),
+        )
+        inp2 = proto.TxInputType(
+            address_n=parse_path("44'/145'/0'/0/1"),
+            # bitcoincash:qr23ajjfd9wd73l87j642puf8cad20lfmqdgwvpat4
+            amount=73452,
+            prev_hash=TXHASH_502e85,
+            prev_index=1,
+            script_type=proto.InputScriptType.SPENDADDRESS,
+        )
+        out1 = proto.TxOutputType(
+            address="bitcoincash:qq6wnnkrz7ykaqvxrx4hmjvayvzjzml54uyk76arx4",
+            amount=1934960,
+            script_type=proto.OutputScriptType.PAYTOADDRESS,
+        )
+        with client:
+            client.set_expected_responses(
+                [
+                    request_input(0),
+                    request_input(1),
+                    request_output(0),
+                    proto.ButtonRequest(code=B.ConfirmOutput),
+                    proto.ButtonRequest(code=B.SignTx),
+                    request_input(0),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
+                    request_input(1),
+                    request_meta(TXHASH_502e85),
+                    request_input(0, TXHASH_502e85),
+                    request_output(0, TXHASH_502e85),
+                    request_output(1, TXHASH_502e85),
+                    request_input(0),
+                    request_input(1),
+                    request_output(0),
+                    request_finished(),
+                ]
+            )
+            _, serialized_tx = btc.sign_tx(
+                client, "Bcash", [inp1, inp2], [out1], prev_txes=TX_API
+            )
+
+        assert (
+            serialized_tx.hex()
+            == "01000000022c06cf6f215c5cbfd7caa8e71b1b32630cabf1f816a4432815b037b277852e50000000006a47304402207a2a955f1cb3dc5f03f2c82934f55654882af4e852e5159639f6349e9386ec4002205fb8419dce4e648eae8f67bc4e369adfb130a87d2ea2d668f8144213b12bb457412103174c61e9c5362507e8061e28d2c0ce3d4df4e73f3535ae0b12f37809e0f92d2dffffffff2c06cf6f215c5cbfd7caa8e71b1b32630cabf1f816a4432815b037b277852e50010000006a473044022062151cf960b71823bbe68c7ed2c2a93ad1b9706a30255fddb02fcbe056d8c26102207bad1f0872bc5f0cfaf22e45c925c35d6c1466e303163b75cb7688038f1a5541412102595caf9aeb6ffdd0e82b150739a83297358b9a77564de382671056ad9e5b8c58ffffffff0170861d00000000001976a91434e9cec317896e818619ab7dc99d2305216ff4af88ac00000000"
         )

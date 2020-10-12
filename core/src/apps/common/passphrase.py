@@ -3,16 +3,14 @@ from micropython import const
 import storage.device
 from trezor import wire, workflow
 from trezor.messages import ButtonRequestType
-from trezor.messages.ButtonAck import ButtonAck
-from trezor.messages.ButtonRequest import ButtonRequest
 from trezor.messages.PassphraseAck import PassphraseAck
 from trezor.messages.PassphraseRequest import PassphraseRequest
 from trezor.ui import ICON_CONFIG, draw_simple
 from trezor.ui.passphrase import CANCELLED, PassphraseKeyboard
 from trezor.ui.text import Text
 
-if __debug__:
-    from apps.debug import input_signal
+from . import button_request
+from .confirm import require_confirm
 
 _MAX_PASSPHRASE_LEN = const(50)
 
@@ -29,6 +27,7 @@ async def get(ctx: wire.Context) -> str:
 
 
 async def _request_from_user(ctx: wire.Context) -> str:
+    workflow.close_others()  # request exclusive UI access
     if storage.device.get_passphrase_always_on_device():
         passphrase = await _request_on_device(ctx)
     else:
@@ -55,17 +54,30 @@ async def _request_on_host(ctx: wire.Context) -> str:
         raise wire.DataError(
             "Passphrase not provided and on_device is False. Use empty string to set an empty passphrase."
         )
+
+    # non-empty passphrase
+    if ack.passphrase:
+        text = Text("Hidden wallet", ICON_CONFIG)
+        text.normal("Access hidden wallet?")
+        text.br()
+        text.normal("Next screen will show")
+        text.normal("the passphrase!")
+        await require_confirm(ctx, text, ButtonRequestType.Other)
+
+        text = Text("Hidden wallet", ICON_CONFIG)
+        text.normal("Use this passphrase?")
+        text.br()
+        text.mono(ack.passphrase)
+        await require_confirm(ctx, text, ButtonRequestType.Other)
+
     return ack.passphrase
 
 
 async def _request_on_device(ctx: wire.Context) -> str:
-    await ctx.call(ButtonRequest(code=ButtonRequestType.PassphraseEntry), ButtonAck)
+    await button_request(ctx, code=ButtonRequestType.PassphraseEntry)
 
     keyboard = PassphraseKeyboard("Enter passphrase", _MAX_PASSPHRASE_LEN)
-    if __debug__:
-        passphrase = await ctx.wait(keyboard, input_signal())
-    else:
-        passphrase = await ctx.wait(keyboard)
+    passphrase = await ctx.wait(keyboard)
     if passphrase is CANCELLED:
         raise wire.ActionCancelled("Passphrase entry cancelled")
 
@@ -75,7 +87,6 @@ async def _request_on_device(ctx: wire.Context) -> str:
 
 
 def _entry_dialog() -> None:
-    workflow.kill_default()
     text = Text("Passphrase entry", ICON_CONFIG)
     text.normal("Please type your", "passphrase on the", "connected host.")
     draw_simple(text)

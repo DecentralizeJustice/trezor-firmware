@@ -18,12 +18,20 @@
  */
 
 #include "common.h"
+#include "py/gc.h"
 #include "py/objstr.h"
 
 #include "vendor/secp256k1-zkp/include/secp256k1.h"
 #include "vendor/secp256k1-zkp/include/secp256k1_ecdh.h"
 #include "vendor/secp256k1-zkp/include/secp256k1_preallocated.h"
 #include "vendor/secp256k1-zkp/include/secp256k1_recovery.h"
+
+// "maybe" = do not fail if allocation fails
+// "with_finaliser" = pass true to gc_alloc
+// combination of "malloc_maybe" and "malloc_with_finaliser" does not exist in
+// malloc.c, so we need to define our own version here.
+#define m_new_obj_var_maybe_with_finaliser(obj_type, var_type, var_num) \
+  gc_alloc(sizeof(obj_type) + sizeof(var_type) * (var_num), true)
 
 void secp256k1_default_illegal_callback_fn(const char *str, void *data) {
   (void)data;
@@ -64,7 +72,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_make_new(
   const size_t secp256k1_ctx_size = secp256k1_context_preallocated_size(
       SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
-  mp_obj_secp256k1_context_t *o = m_new_obj_var_maybe(
+  mp_obj_secp256k1_context_t *o = m_new_obj_var_maybe_with_finaliser(
       mp_obj_secp256k1_context_t, uint8_t, secp256k1_ctx_size);
   if (!o) {
     mp_raise_ValueError("secp256k1_zkp context is too large");
@@ -144,7 +152,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_publickey(
     size_t n_args, const mp_obj_t *args) {
   const secp256k1_context *ctx =
       mod_trezorcrypto_get_secp256k1_context(args[0]);
-  mp_buffer_info_t sk;
+  mp_buffer_info_t sk = {0};
   mp_get_buffer_raise(args[1], &sk, MP_BUFFER_READ);
   secp256k1_pubkey pk;
   if (sk.len != 32) {
@@ -155,7 +163,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_publickey(
   }
 
   bool compressed = n_args < 3 || args[2] == mp_const_true;
-  uint8_t out[65];
+  uint8_t out[65] = {0};
   size_t outlen = sizeof(out);
   secp256k1_ec_pubkey_serialize(
       ctx, out, &outlen, &pk,
@@ -176,7 +184,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_sign(size_t n_args,
                                                         const mp_obj_t *args) {
   const secp256k1_context *ctx =
       mod_trezorcrypto_get_secp256k1_context(args[0]);
-  mp_buffer_info_t sk, dig;
+  mp_buffer_info_t sk = {0}, dig = {0};
   mp_get_buffer_raise(args[1], &sk, MP_BUFFER_READ);
   mp_get_buffer_raise(args[2], &dig, MP_BUFFER_READ);
   bool compressed = n_args < 4 || args[3] == mp_const_true;
@@ -187,8 +195,8 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_sign(size_t n_args,
     mp_raise_ValueError("Invalid length of digest");
   }
   secp256k1_ecdsa_recoverable_signature sig;
-  uint8_t out[65];
-  int pby;
+  uint8_t out[65] = {0};
+  int pby = 0;
   if (!secp256k1_ecdsa_sign_recoverable(ctx, &sig, (const uint8_t *)dig.buf,
                                         (const uint8_t *)sk.buf, NULL, NULL)) {
     mp_raise_ValueError("Signing failed");
@@ -213,7 +221,7 @@ STATIC mp_obj_t
 mod_trezorcrypto_secp256k1_context_verify(size_t n_args, const mp_obj_t *args) {
   const secp256k1_context *ctx =
       mod_trezorcrypto_get_secp256k1_context(args[0]);
-  mp_buffer_info_t pk, sig, dig;
+  mp_buffer_info_t pk = {0}, sig = {0}, dig = {0};
   mp_get_buffer_raise(args[1], &pk, MP_BUFFER_READ);
   mp_get_buffer_raise(args[2], &sig, MP_BUFFER_READ);
   mp_get_buffer_raise(args[3], &dig, MP_BUFFER_READ);
@@ -253,7 +261,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_verify_recover(
     mp_obj_t self, mp_obj_t signature, mp_obj_t digest) {
   const secp256k1_context *ctx = mod_trezorcrypto_get_secp256k1_context(self);
-  mp_buffer_info_t sig, dig;
+  mp_buffer_info_t sig = {0}, dig = {0};
   mp_get_buffer_raise(signature, &sig, MP_BUFFER_READ);
   mp_get_buffer_raise(digest, &dig, MP_BUFFER_READ);
   if (sig.len != 65) {
@@ -278,7 +286,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_verify_recover(
   if (!secp256k1_ecdsa_recover(ctx, &pk, &ec_sig, (const uint8_t *)dig.buf)) {
     return mp_const_none;
   }
-  uint8_t out[65];
+  uint8_t out[65] = {0};
   size_t pklen = sizeof(out);
   secp256k1_ec_pubkey_serialize(
       ctx, out, &pklen, &pk,
@@ -306,7 +314,7 @@ static int secp256k1_ecdh_hash_passthrough(uint8_t *output, const uint8_t *x,
 STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_multiply(
     mp_obj_t self, mp_obj_t secret_key, mp_obj_t public_key) {
   const secp256k1_context *ctx = mod_trezorcrypto_get_secp256k1_context(self);
-  mp_buffer_info_t sk, pk;
+  mp_buffer_info_t sk = {0}, pk = {0};
   mp_get_buffer_raise(secret_key, &sk, MP_BUFFER_READ);
   mp_get_buffer_raise(public_key, &pk, MP_BUFFER_READ);
   if (sk.len != 32) {
@@ -320,7 +328,7 @@ STATIC mp_obj_t mod_trezorcrypto_secp256k1_context_multiply(
                                  pk.len)) {
     mp_raise_ValueError("Invalid public key");
   }
-  uint8_t out[65];
+  uint8_t out[65] = {0};
   if (!secp256k1_ecdh(ctx, out, &ec_pk, (const uint8_t *)sk.buf,
                       secp256k1_ecdh_hash_passthrough, NULL)) {
     mp_raise_ValueError("Multiply failed");

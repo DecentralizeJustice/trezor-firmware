@@ -14,6 +14,10 @@ from trezor.ui.text import Text
 from apps.common.confirm import confirm, require_confirm, require_hold_to_confirm
 from apps.common.layout import show_success
 
+if False:
+    from trezor import loop
+    from typing import List, Tuple
+
 if __debug__:
     from apps import debug
 
@@ -184,11 +188,7 @@ async def _confirm_word(ctx, share_index, share_words, offset, count, group_inde
 
     # let the user pick a word
     select = MnemonicWordSelect(choices, share_index, checked_index, count, group_index)
-    if __debug__:
-        selected_word = await ctx.wait(select, debug.input_signal())
-    else:
-        selected_word = await ctx.wait(select)
-
+    selected_word = await ctx.wait(select)
     # confirm it is the correct one
     return selected_word == checked_word
 
@@ -562,12 +562,9 @@ class Slip39NumInput(ui.Component):
                 else:
                     first_line_text = "Set the total number of"
                     second_line_text = "shares in Group %s." % (self.group_id + 1)
-                ui.display.text(
-                    12, 130, first_line_text, ui.NORMAL, ui.FG, ui.BG, ui.WIDTH - 12
-                )
-                ui.display.text(
-                    12, 156, second_line_text, ui.NORMAL, ui.FG, ui.BG, ui.WIDTH - 12
-                )
+                ui.display.bar(0, 110, ui.WIDTH, 52, ui.BG)
+                ui.display.text(12, 130, first_line_text, ui.NORMAL, ui.FG, ui.BG)
+                ui.display.text(12, 156, second_line_text, ui.NORMAL, ui.FG, ui.BG)
             elif self.step is Slip39NumInput.SET_THRESHOLD:
                 if self.group_id is None:
                     first_line_text = "For recovery you need"
@@ -580,29 +577,22 @@ class Slip39NumInput(ui.Component):
                 else:
                     first_line_text = "The required number of "
                     second_line_text = "shares to form Group %s." % (self.group_id + 1)
+                ui.display.bar(0, 110, ui.WIDTH, 52, ui.BG)
                 ui.display.text(12, 130, first_line_text, ui.NORMAL, ui.FG, ui.BG)
-                ui.display.text(
-                    12, 156, second_line_text, ui.NORMAL, ui.FG, ui.BG, ui.WIDTH - 12
-                )
+                ui.display.text(12, 156, second_line_text, ui.NORMAL, ui.FG, ui.BG)
             elif self.step is Slip39NumInput.SET_GROUPS:
+                ui.display.bar(0, 110, ui.WIDTH, 52, ui.BG)
                 ui.display.text(
                     12, 130, "A group is made up of", ui.NORMAL, ui.FG, ui.BG
                 )
-                ui.display.text(
-                    12, 156, "recovery shares.", ui.NORMAL, ui.FG, ui.BG, ui.WIDTH - 12
-                )
+                ui.display.text(12, 156, "recovery shares.", ui.NORMAL, ui.FG, ui.BG)
             elif self.step is Slip39NumInput.SET_GROUP_THRESHOLD:
+                ui.display.bar(0, 110, ui.WIDTH, 52, ui.BG)
                 ui.display.text(
                     12, 130, "The required number of", ui.NORMAL, ui.FG, ui.BG
                 )
                 ui.display.text(
-                    12,
-                    156,
-                    "groups for recovery.",
-                    ui.NORMAL,
-                    ui.FG,
-                    ui.BG,
-                    ui.WIDTH - 12,
+                    12, 156, "groups for recovery.", ui.NORMAL, ui.FG, ui.BG
                 )
 
             self.repaint = False
@@ -647,8 +637,11 @@ class MnemonicWordSelect(ui.Layout):
 
     if __debug__:
 
-        def read_content(self):
+        def read_content(self) -> List[str]:
             return self.text.read_content() + [b.text for b in self.buttons]
+
+        def create_tasks(self) -> Tuple[loop.Task, ...]:
+            return super().create_tasks() + (debug.input_signal(),)
 
 
 async def show_reset_device_warning(ctx, backup_type: BackupType = BackupType.Bip39):

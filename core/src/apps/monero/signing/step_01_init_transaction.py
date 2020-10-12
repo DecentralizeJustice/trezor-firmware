@@ -68,6 +68,10 @@ async def init_transaction(
     if tsx_data.hard_fork:
         state.hard_fork = tsx_data.hard_fork
 
+    state.tx_type = (
+        signing.RctType.CLSAG if state.hard_fork >= 13 else signing.RctType.Bulletproof2
+    )
+
     # Ensure change is correct
     _check_change(state, tsx_data.outputs)
 
@@ -81,7 +85,7 @@ async def init_transaction(
 
     # Extra processing, payment id
     _process_payment_id(state, tsx_data)
-    await _compute_sec_keys(state, tsx_data)
+    _compute_sec_keys(state, tsx_data)
     gc.collect()
 
     # Iterative tx_prefix_hash hash computation
@@ -92,7 +96,7 @@ async def init_transaction(
 
     # Final message hasher
     state.full_message_hasher.init()
-    state.full_message_hasher.set_type_fee(signing.RctType.Bulletproof2, state.fee)
+    state.full_message_hasher.set_type_fee(state.tx_type, state.fee)
 
     # Sub address precomputation
     if tsx_data.account is not None and tsx_data.minor_indices:
@@ -104,7 +108,7 @@ async def init_transaction(
     # and trezor validates it.
     hmacs = []
     for idx in range(state.output_count):
-        c_hmac = await offloading_keys.gen_hmac_tsxdest(
+        c_hmac = offloading_keys.gen_hmac_tsxdest(
             state.key_hmac, tsx_data.outputs[idx], idx
         )
         hmacs.append(c_hmac)
@@ -268,7 +272,7 @@ def _check_change(state: State, outputs: List[MoneroTransactionDestinationEntry]
         raise signing.ChangeAddressError("Change address differs from ours")
 
 
-async def _compute_sec_keys(state: State, tsx_data: MoneroTransactionData):
+def _compute_sec_keys(state: State, tsx_data: MoneroTransactionData):
     """
     Generate master key H( H(TsxData || tx_priv) || rand )
     """
@@ -276,7 +280,7 @@ async def _compute_sec_keys(state: State, tsx_data: MoneroTransactionData):
     from apps.monero.xmr.keccak_hasher import get_keccak_writer
 
     writer = get_keccak_writer()
-    await protobuf.dump_message(writer, tsx_data)
+    protobuf.dump_message(writer, tsx_data)
     writer.write(crypto.encodeint(state.tx_priv))
 
     master_key = crypto.keccak_2hash(

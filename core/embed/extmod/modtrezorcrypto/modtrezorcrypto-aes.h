@@ -57,20 +57,20 @@ STATIC mp_obj_t mod_trezorcrypto_AES_make_new(const mp_obj_type_t *type,
                                               size_t n_args, size_t n_kw,
                                               const mp_obj_t *args) {
   mp_arg_check_num(n_args, n_kw, 2, 3, false);
-  mp_obj_AES_t *o = m_new_obj(mp_obj_AES_t);
+  mp_obj_AES_t *o = m_new_obj_with_finaliser(mp_obj_AES_t);
   o->base.type = type;
   o->mode = mp_obj_get_int(args[0]);
   if (o->mode < ECB || o->mode > CTR) {
     mp_raise_ValueError("Invalid AES mode");
   }
-  mp_buffer_info_t key;
+  mp_buffer_info_t key = {0};
   mp_get_buffer_raise(args[1], &key, MP_BUFFER_READ);
   if (key.len != 16 && key.len != 24 && key.len != 32) {
     mp_raise_ValueError(
         "Invalid length of key (has to be 128, 192 or 256 bits)");
   }
   if (n_args > 2) {
-    mp_buffer_info_t iv;
+    mp_buffer_info_t iv = {0};
     mp_get_buffer_raise(args[2], &iv, MP_BUFFER_READ);
     if (iv.len != AES_BLOCK_SIZE) {
       mp_raise_ValueError(
@@ -98,12 +98,12 @@ STATIC mp_obj_t mod_trezorcrypto_AES_make_new(const mp_obj_type_t *type,
 }
 
 static mp_obj_t aes_update(mp_obj_t self, mp_obj_t data, bool encrypt) {
-  mp_buffer_info_t buf;
+  mp_buffer_info_t buf = {0};
   mp_get_buffer_raise(data, &buf, MP_BUFFER_READ);
   if (buf.len == 0) {
     return mp_const_empty_bytes;
   }
-  vstr_t vstr;
+  vstr_t vstr = {0};
   vstr_init_len(&vstr, buf.len);
   mp_obj_AES_t *o = MP_OBJ_TO_PTR(self);
   switch (o->mode) {

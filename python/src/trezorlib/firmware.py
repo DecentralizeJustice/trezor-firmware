@@ -363,7 +363,7 @@ def calculate_code_hashes(
         chunk = code[start:end]
         # padding for last non-empty chunk
         if padding_byte is not None and start < len(code) and end > len(code):
-            chunk += padding_byte[0:1] * (chunk_size - len(chunk))
+            chunk += padding_byte[0:1] * (end - start - len(chunk))
 
         if not chunk:
             hashes.append(b"\0" * 32)
@@ -397,7 +397,9 @@ def validate_code_hashes(fw: c.Container, version: FirmwareFormat) -> None:
 def validate_onev2(fw: c.Container, allow_unsigned: bool = False) -> None:
     try:
         check_sig_v1(
-            digest_onev2(fw), fw.header.v1_key_indexes, fw.header.v1_signatures,
+            digest_onev2(fw),
+            fw.header.v1_key_indexes,
+            fw.header.v1_signatures,
         )
     except Unsigned:
         if not allow_unsigned:

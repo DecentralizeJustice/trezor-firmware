@@ -1,58 +1,55 @@
 from common import *
 
 import protobuf
-
-if False:
-    from typing import Awaitable, Dict
+from trezor.utils import BufferReader, BufferWriter
 
 
 class Message(protobuf.MessageType):
-    def __init__(self, uint_field: int = 0, enum_field: int = 0) -> None:
-        self.sint_field = uint_field
+    def __init__(self, sint_field: int = 0, enum_field: int = 0) -> None:
+        self.sint_field = sint_field
         self.enum_field = enum_field
 
     @classmethod
-    def get_fields(cls) -> Dict:
+    def get_fields(cls):
         return {
             1: ("sint_field", protobuf.SVarintType, 0),
             2: ("enum_field", protobuf.EnumType("t", (0, 5, 25)), 0),
         }
 
 
-class ByteReader:
-    def __init__(self, data: bytes) -> None:
-        self.data = data
-        self.pos = 0
+class MessageWithRequiredAndDefault(protobuf.MessageType):
+    def __init__(self, required_field, default_field) -> None:
+        self.required_field = required_field
+        self.default_field = default_field
 
-    async def areadinto(self, buf: bytearray) -> int:
-        remaining = len(self.data) - self.pos
-        limit = len(buf)
-        if remaining < limit:
-            raise EOFError
-
-        buf[:] = self.data[self.pos : self.pos + limit]
-        self.pos += limit
-        return limit
-
-
-class ByteArrayWriter:
-    def __init__(self) -> None:
-        self.buf = bytearray(0)
-
-    async def awrite(self, buf: bytes) -> int:
-        self.buf.extend(buf)
-        return len(buf)
+    @classmethod
+    def get_fields(cls):
+        return {
+            1: ("required_field", protobuf.UVarintType, protobuf.FLAG_REQUIRED),
+            2: ("default_field", protobuf.SVarintType, -1),
+        }
 
 
 def load_uvarint(data: bytes) -> int:
-    reader = ByteReader(data)
-    return await_result(protobuf.load_uvarint(reader))
+    reader = BufferReader(data)
+    return protobuf.load_uvarint(reader)
 
 
 def dump_uvarint(value: int) -> bytearray:
-    writer = ByteArrayWriter()
-    await_result(protobuf.dump_uvarint(writer, value))
-    return writer.buf
+    writer = BufferWriter(bytearray(16))
+    protobuf.dump_uvarint(writer, value)
+    return memoryview(writer.buffer)[: writer.offset]
+
+
+def dump_message(msg: protobuf.MessageType) -> bytearray:
+    length = protobuf.count_message(msg)
+    buffer = bytearray(length)
+    protobuf.dump_message(BufferWriter(buffer), msg)
+    return buffer
+
+
+def load_message(msg_type, buffer: bytearray) -> protobuf.MessageType:
+    return protobuf.load_message(BufferReader(buffer), msg_type)
 
 
 class TestProtobuf(unittest.TestCase):
@@ -85,27 +82,47 @@ class TestProtobuf(unittest.TestCase):
             protobuf.uint_to_sint(protobuf.sint_to_uint(1234567891011)), 1234567891011
         )
         self.assertEqual(
-            protobuf.uint_to_sint(protobuf.sint_to_uint(-2 ** 32)), -2 ** 32
+            protobuf.uint_to_sint(protobuf.sint_to_uint(-(2 ** 32))), -(2 ** 32)
         )
 
     def test_validate_enum(self):
         # ok message:
         msg = Message(-42, 5)
-        writer = ByteArrayWriter()
-        await_result(protobuf.dump_message(writer, msg))
-        reader = ByteReader(bytes(writer.buf))
-        nmsg = await_result(protobuf.load_message(reader, Message))
+        msg_encoded = dump_message(msg)
+        nmsg = load_message(Message, msg_encoded)
 
         self.assertEqual(msg.sint_field, nmsg.sint_field)
         self.assertEqual(msg.enum_field, nmsg.enum_field)
 
         # bad enum value:
         msg = Message(-42, 42)
-        writer = ByteArrayWriter()
-        await_result(protobuf.dump_message(writer, msg))
-        reader = ByteReader(bytes(writer.buf))
+        msg_encoded = dump_message(msg)
         with self.assertRaises(TypeError):
-            await_result(protobuf.load_message(reader, Message))
+            load_message(Message, msg_encoded)
+
+    def test_required(self):
+        msg = MessageWithRequiredAndDefault(required_field=1, default_field=2)
+        msg_encoded = dump_message(msg)
+        nmsg = load_message(MessageWithRequiredAndDefault, msg_encoded)
+
+        self.assertEqual(nmsg.required_field, 1)
+        self.assertEqual(nmsg.default_field, 2)
+
+        # try a message without the required_field
+        msg = MessageWithRequiredAndDefault(required_field=None, default_field=2)
+        # encoding always succeeds
+        msg_encoded = dump_message(msg)
+        with self.assertRaises(ValueError):
+            load_message(MessageWithRequiredAndDefault, msg_encoded)
+
+        # try a message without the default field
+        msg = MessageWithRequiredAndDefault(required_field=1, default_field=None)
+        msg_encoded = dump_message(msg)
+        nmsg = load_message(MessageWithRequiredAndDefault, msg_encoded)
+
+        self.assertEqual(nmsg.required_field, 1)
+        self.assertEqual(nmsg.default_field, -1)
+
 
 
 if __name__ == "__main__":

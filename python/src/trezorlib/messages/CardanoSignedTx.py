@@ -15,15 +15,16 @@ class CardanoSignedTx(p.MessageType):
 
     def __init__(
         self,
+        *,
         tx_hash: bytes = None,
-        tx_body: bytes = None,
+        serialized_tx: bytes = None,
     ) -> None:
         self.tx_hash = tx_hash
-        self.tx_body = tx_body
+        self.serialized_tx = serialized_tx
 
     @classmethod
     def get_fields(cls) -> Dict:
         return {
-            1: ('tx_hash', p.BytesType, 0),
-            2: ('tx_body', p.BytesType, 0),
+            1: ('tx_hash', p.BytesType, None),
+            2: ('serialized_tx', p.BytesType, None),
         }

@@ -20,10 +20,10 @@
 
 """
 This implements the high-level functions for SLIP-39, also called "Shamir Backup".
-It uses crypto/shamir.c for the cryptographic operations and crypto.slip39.c for
+It uses crypto/shamir.c for the cryptographic operations and crypto/slip39.c for
 performance-heavy operations (mostly regarding the wordlist).
 
-This consideres the Encrypted Master Secret, as defined in SLIP-39, as what is
+This considers the Encrypted Master Secret, as defined in SLIP-39, as what is
 stored in the storage, then "decrypted" using a passphrase into a Master Secret,
 which is then fed into BIP-32 for example.
 
@@ -31,10 +31,10 @@ See https://github.com/satoshilabs/slips/blob/master/slip-0039.md.
 """
 
 from micropython import const
+from trezorcrypto import shamir, slip39
 
 from trezor.crypto import hashlib, hmac, pbkdf2, random
 from trezor.errors import MnemonicError
-from trezorcrypto import shamir, slip39
 
 if False:
     from typing import Dict, Iterable, List, Optional, Set, Tuple
@@ -353,7 +353,7 @@ def decode_mnemonic(mnemonic: str) -> Share:
 
 
 """
-## Convert mnemonics or integers to incices and back
+## Convert mnemonics or integers to indices and back
 """
 
 

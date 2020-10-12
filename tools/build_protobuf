@@ -99,7 +99,7 @@ do_check() {
 
     cp -rT "$DESTDIR" "$TMPDIR"
     do_rebuild "$TMPDIR" "$@"
-    DIFF=$(diff -ur "$DESTDIR" "$TMPDIR")
+    DIFF=$(diff -ur --exclude __pycache__ "$DESTDIR" "$TMPDIR")
     rm -r "$TMPDIR"
     if [ -n "$DIFF" ]; then
         echo "$DIFF"
@@ -114,6 +114,6 @@ else
 fi
 
 $func core/src/trezor/messages "$CORE_PROTOBUF_SOURCES" "$CORE_MESSAGES_IGNORE" TRUE --no-init-py
-$func python/src/trezorlib/messages "$PYTHON_PROTOBUF_SOURCES" "$PYTHON_MESSAGES_IGNORE" FALSE -P ..protobuf
+$func python/src/trezorlib/messages "$PYTHON_PROTOBUF_SOURCES" "$PYTHON_MESSAGES_IGNORE" FALSE --include-deprecated -P ..protobuf
 
 exit $RETURN

@@ -1,7 +1,7 @@
 # Build instructions for Emulator (Unix port)
 
-First clone, initialize submodules, install Pipenv and enter the Pipenv shell as 
-defined [here](index.md). **Do not forget you need to be in a `pipenv shell`
+First clone, initialize submodules, install Poetry and enter the Poetry shell as 
+defined [here](index.md). **Do not forget you need to be in a `poetry shell`
 environment!**
 
 ## Dependencies
@@ -41,6 +41,10 @@ nix-shell
 ```
 
 * __Mac OS X__:
+
+_Consider using [Nix](https://nixos.org/download.html). With Nix all you need to do is `nix-shell`._
+
+For other users:
 
 ```sh
 brew install scons sdl2 sdl2_image pkg-config

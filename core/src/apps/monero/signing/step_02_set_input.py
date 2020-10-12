@@ -11,10 +11,10 @@ If number of inputs is small, in-memory mode is used = alpha, pseudo_outs are ke
 Otherwise pseudo_outs are offloaded with HMAC, alpha is offloaded encrypted under chacha_poly with
 key derived for exactly this purpose.
 """
-from .state import State
-
 from apps.monero.layout import confirms
 from apps.monero.xmr import crypto, monero, serialize
+
+from .state import State
 
 if False:
     from typing import List, Tuple, Optional
@@ -95,7 +95,7 @@ async def set_input(
     state.mem_trace(2, True)
 
     # HMAC(T_in,i || vin_i)
-    hmac_vini = await offloading_keys.gen_hmac_vini(
+    hmac_vini = offloading_keys.gen_hmac_vini(
         state.key_hmac, src_entr, vini_bin, state.current_input_index
     )
     state.mem_trace(3, True)

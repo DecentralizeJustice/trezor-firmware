@@ -52,6 +52,9 @@ void layoutConfirmOpReturn(const uint8_t *data, uint32_t size);
 void layoutConfirmTx(const CoinInfo *coin, uint64_t amount_out,
                      uint64_t amount_fee);
 void layoutFeeOverThreshold(const CoinInfo *coin, uint64_t fee);
+void layoutChangeCountOverThreshold(uint32_t change_count);
+void layoutConfirmNondefaultLockTime(uint32_t lock_time,
+                                     bool lock_time_disabled);
 void layoutSignMessage(const uint8_t *msg, uint32_t len);
 void layoutVerifyAddress(const CoinInfo *coin, const char *address);
 void layoutVerifyMessage(const uint8_t *msg, uint32_t len);
@@ -68,6 +71,7 @@ void layoutXPUB(const char *xpub, int index, int page, bool ours);
 void layoutSignIdentity(const IdentityType *identity, const char *challenge);
 void layoutDecryptIdentity(const IdentityType *identity);
 void layoutU2FDialog(const char *verb, const char *appname);
+void layoutShowPassphrase(const char *passphrase);
 
 void layoutNEMDialog(const BITMAP *icon, const char *btnNo, const char *btnYes,
                      const char *desc, const char *line1, const char *address);
@@ -88,6 +92,8 @@ void layoutNEMLevy(const NEMMosaicDefinition *definition, uint8_t network);
 
 void layoutCosiCommitSign(const uint32_t *address_n, size_t address_n_count,
                           const uint8_t *data, uint32_t len, bool final_sign);
+
+void layoutConfirmAutoLockDelay(uint32_t delay_ms);
 
 const char **split_message(const uint8_t *msg, uint32_t len, uint32_t rowlen);
 const char **split_message_hex(const uint8_t *msg, uint32_t len);

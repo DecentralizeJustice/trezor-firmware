@@ -14,10 +14,10 @@ import gc
 
 from trezor import utils
 
-from .state import State
-
 from apps.monero.layout import confirms
 from apps.monero.xmr import crypto
+
+from .state import State
 
 if False:
     from typing import List
@@ -77,7 +77,7 @@ async def sign_input(
     # Check input's HMAC
     from apps.monero.signing import offloading_keys
 
-    vini_hmac_comp = await offloading_keys.gen_hmac_vini(
+    vini_hmac_comp = offloading_keys.gen_hmac_vini(
         state.key_hmac, src_entr, vini_bin, input_position
     )
     if not crypto.ct_equals(vini_hmac_comp, vini_hmac):
@@ -174,6 +174,7 @@ async def sign_input(
     state.mem_trace(4, True)
 
     from apps.monero.xmr import mlsag
+    from apps.monero import signing
 
     mg_buffer = []
     ring_pubkeys = [x.key for x in src_entr.outputs if x]
@@ -182,7 +183,7 @@ async def sign_input(
 
     state.mem_trace(5, True)
 
-    if state.hard_fork and state.hard_fork >= 13:
+    if state.tx_type == signing.RctType.CLSAG:
         state.mem_trace("CLSAG")
         mlsag.generate_clsag_simple(
             state.full_message,

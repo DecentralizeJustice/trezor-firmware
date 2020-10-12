@@ -1,32 +1,31 @@
-image: registry.gitlab.com/satoshilabs/trezor/trezor-firmware/environment
+image: registry.gitlab.com/satoshilabs/trezor/trezor-firmware/trezor-firmware-env.nix
 
 # Core
 
 core unit test:
   stage: test
-  dependencies:
+  needs:
     - core unix regular build
   script:
-    - cd core
-    - pipenv run make test
+    - nix-shell --run "poetry run make -C core test"
 
 core device ui test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   script:
-    - cd core
-    - pipenv run make test_emu_ui
-    - cd ..
+    - nix-shell --run "poetry run make -C core test_emu_ui"
   after_script:
     - mv tests/ui_tests/reporting/reports/test/ test_ui_report
-    - pipenv run python ci/prepare_ui_artifacts.py
+    - nix-shell --run "poetry run python ci/prepare_ui_artifacts.py"
+    - diff tests/ui_tests/fixtures.json tests/ui_tests/fixtures.suggestion.json
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
       - ci/ui_test_records/
       - test_ui_report
       - tests/ui_tests/screens/
+      - tests/ui_tests/fixtures.suggestion.json
       - tests/junit.xml
       - tests/trezor.log
     when: always
@@ -36,14 +35,13 @@ core device ui test:
 
 core device test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   variables:
     TREZOR_PROFILING: 1
   script:
-    - cd core
-    - pipenv run make test_emu
-    - mv ./src/.coverage .coverage.test_emu
+    - nix-shell --run "poetry run make -C core test_emu"
+    - mv core/src/.coverage core/.coverage.test_emu
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -57,14 +55,13 @@ core device test:
 
 core btconly device test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen btconly debug build
   variables:
-    MICROPYTHON: "build/unix/micropython-bitcoinonly"
+    MICROPYTHON: "build/unix/trezor-emu-core-bitcoinonly"
     TREZOR_PYTEST_SKIP_ALTCOINS: 1
   script:
-    - cd core
-    - pipenv run make test_emu
+    - nix-shell --run "poetry run make -C core test_emu"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -77,14 +74,13 @@ core btconly device test:
 
 core monero test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   variables:
     TREZOR_PROFILING: 1
   script:
-    - cd core
-    - pipenv run make test_emu_monero
-    - mv ./src/.coverage .coverage.test_emu_monero
+    - nix-shell --run "poetry run make -C core test_emu_monero"
+    - mv core/src/.coverage core/.coverage.test_emu_monero
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -95,15 +91,14 @@ core monero test:
 
 core u2f test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   variables:
     TREZOR_PROFILING: 1
   script:
-    - make -C tests/fido_tests/u2f-tests-hid
-    - cd core
-    - pipenv run make test_emu_u2f
-    - mv ./src/.coverage .coverage.test_emu_u2f
+    - nix-shell --run "poetry run make -C tests/fido_tests/u2f-tests-hid"
+    - nix-shell --run "poetry run make -C core test_emu_u2f"
+    - mv core/src/.coverage core/.coverage.test_emu_u2f
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -114,17 +109,15 @@ core u2f test:
 
 core fido2 test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   variables:
     TREZOR_PROFILING: 1
   script:
-    - cd core
-    - apt-get -y install procps
-    - pgrep micropython || true
-    - pipenv run make test_emu_fido2
-    - pgrep micropython || true
-    - mv ./src/.coverage .coverage.test_emu_fido2
+    - pgrep trezor-emu-core || true
+    - nix-shell --run "poetry run make -C core test_emu_fido2"
+    - pgrep trezor-emu-core || true
+    - mv core/src/.coverage core/.coverage.test_emu_fido2
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -138,11 +131,10 @@ core fido2 test:
 
 core click test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   script:
-    - cd core
-    - pipenv run make test_emu_click
+    - nix-shell --run "poetry run make -C core test_emu_click"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -155,13 +147,13 @@ core click test:
 
 core upgrade test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   variables:
     TREZOR_UPGRADE_TEST: "core"
   script:
-    - tests/download_emulators.sh
-    - pipenv run pytest --junitxml=tests/junit.xml tests/upgrade_tests
+    - nix-shell --run "tests/download_emulators.sh"
+    - nix-shell --run "poetry run pytest --junitxml=tests/junit.xml tests/upgrade_tests"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -173,10 +165,10 @@ core upgrade test:
 
 core persistence test:
   stage: test
-  dependencies:
+  needs:
     - core unix frozen debug build
   script:
-    - pipenv run pytest --junitxml=tests/junit.xml tests/persistence_tests
+    - nix-shell --run "poetry run pytest --junitxml=tests/junit.xml tests/persistence_tests"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -193,17 +185,17 @@ crypto test:
   stage: test
   only:
     changes:
+      - .gitlab-ci.yml
       - ci/**/*
       - crypto/**/*
-  dependencies:
+  needs:
     - crypto build
   script:
-    - cd crypto
-    - ./tests/aestst
-    - ./tests/test_check
-    - ./tests/test_openssl 1000
-    - ITERS=10 pipenv run pytest --junitxml=tests/junit.xml tests
-    - CK_TIMEOUT_MULTIPLIER=20 valgrind -q --error-exitcode=1 ./tests/test_check
+    - ./crypto/tests/aestst
+    - ./crypto/tests/test_check
+    - ./crypto/tests/test_openssl 1000
+    - nix-shell --run "cd crypto && ITERS=10 poetry run pytest --junitxml=tests/junit.xml tests"
+    - nix-shell --run "CK_TIMEOUT_MULTIPLIER=20 valgrind -q --error-exitcode=1 ./crypto/tests/test_check"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -218,13 +210,12 @@ crypto test:
 
 legacy test:
   stage: test
-  dependencies:
-    - legacy emu regular build
+  needs:
+    - legacy emu regular debug build
   variables:
     EMULATOR: "1"
   script:
-    - cd legacy
-    - pipenv run script/test
+    - nix-shell --run "poetry run legacy/script/test"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -236,15 +227,14 @@ legacy test:
 
 legacy btconly test:
   stage: test
-  dependencies:
-    - legacy emu btconly build
+  needs:
+    - legacy emu btconly debug build
   variables:
     EMULATOR: "1"
     EMULATOR_BINARY: "firmware/trezor-bitcoinonly.elf"
     TREZOR_PYTEST_SKIP_ALTCOINS: 1
   script:
-    - cd legacy
-    - pipenv run script/test
+    - nix-shell --run "poetry run legacy/script/test"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -257,13 +247,13 @@ legacy btconly test:
 
 legacy upgrade test:
   stage: test
-  dependencies:
-    - legacy emu regular build
+  needs:
+    - legacy emu regular debug build
   variables:
     TREZOR_UPGRADE_TEST: "legacy"
   script:
-    - tests/download_emulators.sh
-    - pipenv run pytest --junitxml=tests/junit.xml tests/upgrade_tests
+    - nix-shell --run "tests/download_emulators.sh"
+    - nix-shell --run "poetry run pytest --junitxml=tests/junit.xml tests/upgrade_tests"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -278,15 +268,19 @@ legacy upgrade test:
 
 python test:
   stage: test
-  dependencies: []
+  needs: []
+  variables:
+    LC_ALL: "C.UTF-8"
+    LANG: "C.UTF-8"
   only:
     changes:
+      - poetry.lock
+      - .gitlab-ci.yml
       - ci/**/*
       - common/**/*
       - python/**/*
   script:
-    - cd python
-    - pipenv run tox
+    - nix-shell --run "cd python && poetry run tox"
 
 
 # Storage
@@ -295,13 +289,13 @@ storage test:
   stage: test
   only:
     changes:
+      - .gitlab-ci.yml
       - ci/**/*
       - storage/**/*
-  dependencies: []
+  needs: []
   script:
-    - cd storage/tests
-    - pipenv run make build
-    - pipenv run make tests_all
+    - nix-shell --run "poetry run make -C storage/tests build"
+    - nix-shell --run "poetry run make -C storage/tests tests_all"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -312,26 +306,56 @@ storage test:
     when: always
 
 # Hardware
-hardware legacy device test:
+hardware legacy regular device test:
   stage: test
   only:
     - schedules  # nightly build
     - /^legacy\//
     - /^release\//
+    - /^secfix\//
   tags:
     - tpmb
-  dependencies:
-    - legacy fw debug build
+  needs:
+    - legacy fw regular debug build
   script:
     - cd ci/hardware_tests
     - nix-shell --run "./record_video.sh ${CI_COMMIT_SHORT_SHA} start"
-    - nix-shell --run "cd ../.. && pipenv sync"
-    - nix-shell --run "pipenv run python bootstrap.py"
-    - nix-shell --run "pipenv run python bootstrap.py ../../trezor-*.bin"
-    - nix-shell --run "pipenv run pytest ../../tests/device_tests"
+    - nix-shell --run "cd ../.. && poetry install"
+    - nix-shell --run "poetry run python bootstrap.py"
+    - nix-shell --run "poetry run python bootstrap.py ../../trezor-*.bin"
+    - nix-shell --run "poetry run pytest ../../tests/device_tests"
     - nix-shell --run "./record_video.sh ${CI_COMMIT_SHORT_SHA} stop"
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
       - ci/hardware_tests/video*.mp4
     expire_in: 2 days
+    when: always
+
+hardware legacy btconly device test:
+  stage: test
+  variables:
+    TREZOR_PYTEST_SKIP_ALTCOINS: 1
+  only:
+    - schedules  # nightly build
+    - /^legacy\//
+    - /^release\//
+    - /^secfix\//
+  tags:
+    - tpmb
+  needs:
+    - legacy fw btconly debug build
+  script:
+    - cd ci/hardware_tests
+    - nix-shell --run "./record_video.sh ${CI_COMMIT_SHORT_SHA} start"
+    - nix-shell --run "cd ../.. && poetry install"
+    - nix-shell --run "poetry run python bootstrap.py"
+    - nix-shell --run "poetry run python bootstrap.py ../../trezor-*.bin"
+    - nix-shell --run "poetry run pytest ../../tests/device_tests"
+    - nix-shell --run "./record_video.sh ${CI_COMMIT_SHORT_SHA} stop"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - ci/hardware_tests/video*.mp4
+    expire_in: 2 days
+    when: always

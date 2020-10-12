@@ -68,7 +68,7 @@ class HID:
 
 
 # extmod/modtrezorio/modtrezorio-poll.h
-def poll(ifaces: Iterable[int], list_ref: List, timeout_us: int) -> bool:
+def poll(ifaces: Iterable[int], list_ref: List, timeout_ms: int) -> bool:
     """
     Wait until one of `ifaces` is ready to read or write (using masks
     `list_ref`:
@@ -193,3 +193,5 @@ TOUCH_START: int  # event id of touch start event
 TOUCH_MOVE: int  # event id of touch move event
 TOUCH_END: int  # event id of touch end event
 WireInterface = Union[HID, WebUSB]
+if False:
+    from . import fatfs, sdcard

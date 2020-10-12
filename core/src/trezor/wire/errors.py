@@ -27,7 +27,7 @@ class DataError(Error):
 
 
 class ActionCancelled(Error):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "Cancelled") -> None:
         super().__init__(FailureType.ActionCancelled, message)
 
 
@@ -37,12 +37,12 @@ class PinExpected(Error):
 
 
 class PinCancelled(Error):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "PIN entry cancelled") -> None:
         super().__init__(FailureType.PinCancelled, message)
 
 
 class PinInvalid(Error):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = "PIN invalid") -> None:
         super().__init__(FailureType.PinInvalid, message)
 
 
@@ -74,6 +74,11 @@ class PinMismatch(Error):
 class WipeCodeMismatch(Error):
     def __init__(self, message: str) -> None:
         super().__init__(FailureType.WipeCodeMismatch, message)
+
+
+class InvalidSession(Error):
+    def __init__(self, message: str = "Invalid session") -> None:
+        super().__init__(FailureType.InvalidSession, message)
 
 
 class FirmwareError(Error):

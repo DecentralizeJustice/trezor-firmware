@@ -18,7 +18,9 @@
  */
 
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "bignum.h"
@@ -34,6 +36,8 @@
 #include "string.h"
 #include "timer.h"
 #include "util.h"
+
+#define LOCKTIME_TIMESTAMP_MIN_VALUE 500000000
 
 #if !BITCOIN_ONLY
 
@@ -440,6 +444,33 @@ void layoutFeeOverThreshold(const CoinInfo *coin, uint64_t fee) {
                     _("Send anyway?"), NULL);
 }
 
+void layoutChangeCountOverThreshold(uint32_t change_count) {
+  char str_change[21] = {0};
+  snprintf(str_change, sizeof(str_change), "There are %" PRIu32, change_count);
+  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                    _("Warning!"), str_change, _("change-outputs."), NULL,
+                    _("Continue?"), NULL);
+}
+
+void layoutConfirmNondefaultLockTime(uint32_t lock_time,
+                                     bool lock_time_disabled) {
+  if (lock_time_disabled) {
+    layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                      _("Warning!"), _("Locktime is set but"),
+                      _("will have no effect."), NULL, _("Continue?"), NULL);
+
+  } else {
+    char str_locktime[11] = {0};
+    snprintf(str_locktime, sizeof(str_locktime), "%" PRIu32, lock_time);
+    char *str_type = (lock_time < LOCKTIME_TIMESTAMP_MIN_VALUE) ? "blockheight:"
+                                                                : "timestamp:";
+
+    layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                      _("Locktime for this"), _("transaction is set to"),
+                      str_type, str_locktime, _("Continue?"), NULL);
+  }
+}
+
 void layoutSignMessage(const uint8_t *msg, uint32_t len) {
   const char **str = NULL;
   if (!is_valid_ascii(msg, len)) {
@@ -813,6 +844,25 @@ void layoutU2FDialog(const char *verb, const char *appname) {
 
 #endif
 
+void layoutShowPassphrase(const char *passphrase) {
+  if (layoutLast != layoutShowPassphrase) {
+    layoutSwipe();
+  } else {
+    oledClear();
+  }
+  const char **str =
+      split_message((const uint8_t *)passphrase, strlen(passphrase), 21);
+  for (int i = 0; i < 3; i++) {
+    oledDrawString(0, i * 9 + 4, str[i], FONT_FIXED);
+  }
+  oledDrawStringCenter(OLED_WIDTH / 2, OLED_HEIGHT - 2 * 9 - 1,
+                       _("Use this passphrase?"), FONT_STANDARD);
+  oledHLine(OLED_HEIGHT - 21);
+  layoutButtonNo(_("Cancel"), &bmp_btn_cancel);
+  layoutButtonYes(_("Confirm"), &bmp_btn_confirm);
+  oledRefresh();
+}
+
 #if !BITCOIN_ONLY
 
 void layoutNEMDialog(const BITMAP *icon, const char *btnNo, const char *btnYes,
@@ -1011,4 +1061,33 @@ void layoutCosiCommitSign(const uint32_t *address_n, size_t address_n_count,
   }
   layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), desc, str[0],
                     str[1], str[2], str[3], NULL, NULL);
+}
+
+void layoutConfirmAutoLockDelay(uint32_t delay_ms) {
+  char line[sizeof("after 4294967296 minutes?")] = {0};
+
+  const char *unit = _("second");
+  uint32_t num = delay_ms / 1000U;
+
+  if (delay_ms >= 60 * 60 * 1000) {
+    unit = _("hour");
+    num /= 60 * 60U;
+  } else if (delay_ms >= 60 * 1000) {
+    unit = _("minute");
+    num /= 60U;
+  }
+
+  strlcpy(line, _("after "), sizeof(line));
+  size_t off = strlen(line);
+  bn_format_uint64(num, NULL, NULL, 0, 0, false, &line[off],
+                   sizeof(line) - off);
+  strlcat(line, " ", sizeof(line));
+  strlcat(line, unit, sizeof(line));
+  if (num > 1) {
+    strlcat(line, "s", sizeof(line));
+  }
+  strlcat(line, "?", sizeof(line));
+  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                    _("Do you really want to"), _("auto-lock your device"),
+                    line, NULL, NULL, NULL);
 }

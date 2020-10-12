@@ -13,6 +13,7 @@ import tempfile
 from collections import namedtuple, defaultdict
 
 import attr
+import construct as c
 
 from google.protobuf import descriptor_pb2
 
@@ -31,6 +32,22 @@ FIELD_TYPES = {
     descriptor_pb2.FieldDescriptorProto.TYPE_BYTES:   ('p.BytesType', 'bytes'),
 }
 # fmt: on
+
+ListOfSimpleValues = c.GreedyRange(
+    c.Struct(
+        "key" / c.VarInt,
+        "value" / c.VarInt,
+    )
+)
+
+
+def parse_protobuf_simple(data):
+    """Micro-parse protobuf-encoded data.
+
+    Assume every field is of type 0 (varint), and parse to a dict of fieldnum: value.
+    """
+    return {v.key >> 3: v.value for v in ListOfSimpleValues.parse(data)}
+
 
 PROTOC = shutil.which("protoc")
 if not PROTOC:
@@ -51,7 +68,11 @@ class ProtoField:
     type_name = attr.ib()
     proto_type = attr.ib()
     py_type = attr.ib()
-    py_inner_type = attr.ib()
+    default_value = attr.ib()
+
+    @property
+    def optional(self):
+        return not self.required and not self.repeated
 
     @classmethod
     def from_field(cls, descriptor, field):
@@ -75,9 +96,18 @@ class ProtoField:
                     "Unknown field type {} for field {}".format(field.type, field.name)
                 ) from None
 
-        py_inner_type = py_type
-        if repeated:
-            py_type = "List[{}]".format(py_type)
+        if not field.HasField("default_value"):
+            default_value = None
+        elif field.type == field.TYPE_ENUM:
+            default_value = str(descriptor.enum_types[type_name][field.default_value])
+        elif field.type == field.TYPE_STRING:
+            default_value = f'"{field.default_value}"'
+        elif field.type == field.TYPE_BYTES:
+            default_value = f'b"{field.default_value}"'
+        elif field.type == field.TYPE_BOOL:
+            default_value = "True" if field.default_value == "true" else "False"
+        else:
+            default_value = field.default_value
 
         return cls(
             name=field.name,
@@ -88,7 +118,7 @@ class ProtoField:
             type_name=type_name,
             proto_type=proto_type,
             py_type=py_type,
-            py_inner_type=py_inner_type,
+            default_value=default_value,
         )
 
 
@@ -164,11 +194,16 @@ class Descriptor:
         self.messages = []
         self.enums = []
         self.enum_types = defaultdict(dict)
+
+        self.extensions = {}
+
         for file in self.files:
             self.messages += file.message_type
             self.enums += file.enum_type
             for message in file.message_type:
                 self._nested_types_from_message(message)
+            for extension in file.extension:
+                self.extensions[extension.name] = extension.number
 
         if not self.messages and not self.enums:
             raise RuntimeError("No messages and no enums found.")
@@ -177,6 +212,20 @@ class Descriptor:
         self.protobuf_import = import_statement_from_path(import_path)
 
         self.out_dir = None
+
+    def _get_extension(self, something, extension_name, default=None):
+        # There doesn't seem to be a sane way to access extensions on a descriptor
+        # via the google.protobuf API.
+        # We do have access to descriptors of the extensions...
+        extension_num = self.extensions[extension_name]
+        # ...and the "options" descriptor _does_ include the extension data. But while
+        # the API provides access to unknown fields, it hides the extensions.
+        # What we do is re-encode the options descriptor...
+        options_bytes = something.options.SerializeToString()
+        # ...and re-parse it as a dict of uvarints...
+        simple_values = parse_protobuf_simple(options_bytes)
+        # ...and extract the value corresponding to the extension we care about.
+        return simple_values.get(extension_num, default)
 
     def _nested_types_from_message(self, message):
         self.messages += message.nested_type
@@ -216,20 +265,26 @@ class Descriptor:
             yield self.create_message_import(name)
 
     def create_init_method(self, fields):
+        required_fields = [f for f in fields if f.required]
+        repeated_fields = [f for f in fields if f.repeated]
+        optional_fields = [f for f in fields if f.optional]
         # please keep the yields aligned
         # fmt: off
-        ... # https://github.com/ambv/black/issues/385
-        yield          "    def __init__("
-        yield          "        self,"
-        for field in fields:
-            yield     f"        {field.name}: {field.py_type} = None,"
+        yield      "    def __init__("
+        yield      "        self,"
+        yield      "        *,"
+        for field in required_fields:
+            yield f"        {field.name}: {field.py_type},"
+        for field in repeated_fields:
+            yield f"        {field.name}: List[{field.py_type}] = None,"
+        for field in optional_fields:
+            yield f"        {field.name}: {field.py_type} = {field.default_value},"
         yield          "    ) -> None:"
 
-        for field in fields:
-            if field.repeated:
-                yield f"        self.{field.name} = {field.name} if {field.name} is not None else []"
-            else:
-                yield f"        self.{field.name} = {field.name}"
+        for field in repeated_fields:
+            yield f"        self.{field.name} = {field.name} if {field.name} is not None else []"
+        for field in required_fields + optional_fields:
+            yield f"        self.{field.name} = {field.name}"
         # fmt: on
 
     def create_fields_method(self, fields):
@@ -239,10 +294,8 @@ class Descriptor:
         yield "        return {"
         for field in fields:
             comments = []
-            if field.required:
-                comments.append("required")
-            if field.orig.HasField("default_value"):
-                comments.append("default={}".format(field.orig.default_value))
+            if field.default_value is not None:
+                comments.append(f"default={field.orig.default_value}")
 
             if comments:
                 comment = "  # " + " ".join(comments)
@@ -251,8 +304,10 @@ class Descriptor:
 
             if field.repeated:
                 flags = "p.FLAG_REPEATED"
+            elif field.required:
+                flags = "p.FLAG_REQUIRED"
             else:
-                flags = "0"
+                flags = field.default_value
 
             yield "            {num}: ('{name}', {type}, {flags}),{comment}".format(
                 num=field.number,
@@ -265,14 +320,19 @@ class Descriptor:
         yield "        }"
         # fmt: on
 
-    def process_message(self, message):
+    def process_message(self, message, include_deprecated=False):
         logging.debug("Processing message {}".format(message.name))
-        msg_id = self.message_types.get(message.name)
+
+        msg_id = self._get_extension(message, "wire_type")
+        if msg_id is None:
+            msg_id = self.message_types.get(message.name)
 
         # "from .. import protobuf as p"
         yield self.protobuf_import + " as p"
 
         fields = [ProtoField.from_field(self, field) for field in message.field]
+        if not include_deprecated:
+            fields = [field for field in fields if not field.orig.options.deprecated]
 
         yield from self.process_subtype_imports(fields)
 
@@ -286,7 +346,7 @@ class Descriptor:
         for field in all_enums:
             allowed_values = self.enum_types[field.type_name].values()
             valuestr = ", ".join(str(v) for v in sorted(allowed_values))
-            yield "        {} = Literal[{}]".format(field.py_inner_type, valuestr)
+            yield "        {} = Literal[{}]".format(field.py_type, valuestr)
 
         yield "    except ImportError:"
         yield "        pass"
@@ -331,9 +391,11 @@ class Descriptor:
             self.enum_types[enum.name][value.name] = value.number
             yield f"{name} = {value.number}  # type: Literal[{value.number}]"
 
-    def process_messages(self, messages):
+    def process_messages(self, messages, include_deprecated=False):
         for message in sorted(messages, key=lambda m: m.name):
-            self.write_to_file(message.name, self.process_message(message))
+            self.write_to_file(
+                message.name, self.process_message(message, include_deprecated)
+            )
 
     def process_enums(self, enums):
         for enum in sorted(enums, key=lambda e: e.name):
@@ -358,10 +420,10 @@ class Descriptor:
             for enum in sorted(self.enums, key=lambda m: m.name):
                 init_py.write("from . import {}\n".format(enum.name))
 
-    def write_classes(self, out_dir, init_py=True):
+    def write_classes(self, out_dir, init_py=True, include_deprecated=False):
         self.out_dir = out_dir
         self.process_enums(self.enums)
-        self.process_messages(self.messages)
+        self.process_messages(self.messages, include_deprecated)
         if init_py:
             self.write_init_py()
 
@@ -376,6 +438,7 @@ if __name__ == "__main__":
     parser.add_argument("--message-type", default="MessageType", help="Name of enum with message IDs")
     parser.add_argument("-I", "--protoc-include", action="append", help="protoc include path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print debug messages")
+    parser.add_argument("-d", "--include-deprecated", action="store_true", help="Include deprecated fields")
     # fmt: on
     args = parser.parse_args()
 
@@ -387,7 +450,7 @@ if __name__ == "__main__":
     descriptor = Descriptor(descriptor_proto, args.message_type, args.protobuf_module)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        descriptor.write_classes(tmpdir, not args.no_init_py)
+        descriptor.write_classes(tmpdir, not args.no_init_py, args.include_deprecated)
 
         for filename in os.listdir(args.out_dir):
             pathname = os.path.join(args.out_dir, filename)

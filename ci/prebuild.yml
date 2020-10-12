@@ -1,30 +1,33 @@
-image: registry.gitlab.com/satoshilabs/trezor/trezor-firmware/environment
+image: registry.gitlab.com/satoshilabs/trezor/trezor-firmware/trezor-firmware-env.nix
 
 style prebuild:
   stage: prebuild
   only:
     changes:
+      - .gitlab-ci.yml
       - ci/**/*
       - "**/*.c"
       - "**/*.h"
       - "**/*.py"
   script:
-    - pipenv run make style_check
+    - nix-shell --run "poetry run make style_check"
 
 common prebuild:
   stage: prebuild
   only:
     changes:
+      - .gitlab-ci.yml
       - ci/**/*
       - "**/*.json"
       - "**/*.proto"
   script:
-    - pipenv run make defs_check
+    - nix-shell --run "poetry run make defs_check"
 
 gen prebuild:
   stage: prebuild
   only:
     changes:
+      - .gitlab-ci.yml
       - ci/**/*
       - "**/*.c"
       - "**/*.h"
@@ -33,11 +36,19 @@ gen prebuild:
       - "**/*.py"
       - "**/*.pyi"
   script:
-    - pipenv run make gen_check
+    - nix-shell --run "poetry run make gen_check"
 
 release commit messages prebuild:
   stage: prebuild
+  before_script: []  # nothing needed
+  variables:
+    # We need to clone the repo properly so we can work with origin/master.
+    GIT_STRATEGY: clone
   only:
-    - /^release\//
+    refs:
+      - /^release\//
+    variables:
+      # We want this to run on gitlab.com/satoshilabs/trezor/trezor-firmware only.
+      - $CI_PROJECT_PATH_SLUG == 'satoshilabs-trezor-trezor-firmware'
   script:
-    - ci/check_release_commit_messages.sh
+    - nix-shell --run "ci/check_release_commit_messages.sh"

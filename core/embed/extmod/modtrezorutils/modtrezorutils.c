@@ -36,9 +36,9 @@
 ///     expected to avoid any invalid memory access.
 ///     """
 STATIC mp_obj_t mod_trezorutils_consteq(mp_obj_t sec, mp_obj_t pub) {
-  mp_buffer_info_t secbuf;
+  mp_buffer_info_t secbuf = {0};
   mp_get_buffer_raise(sec, &secbuf, MP_BUFFER_READ);
-  mp_buffer_info_t pubbuf;
+  mp_buffer_info_t pubbuf = {0};
   mp_get_buffer_raise(pub, &pubbuf, MP_BUFFER_READ);
 
   size_t diff = secbuf.len - pubbuf.len;
@@ -58,25 +58,35 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorutils_consteq_obj,
                                  mod_trezorutils_consteq);
 
 /// def memcpy(
-///     dst: bytearray, dst_ofs: int, src: bytes, src_ofs: int, n: int
+///     dst: Union[bytearray, memoryview],
+///     dst_ofs: int,
+///     src: bytes,
+///     src_ofs: int,
+///     n: int = None,
 /// ) -> int:
 ///     """
 ///     Copies at most `n` bytes from `src` at offset `src_ofs` to
-///     `dst` at offset `dst_ofs`.  Returns the number of actually
-///     copied bytes.
+///     `dst` at offset `dst_ofs`. Returns the number of actually
+///     copied bytes. If `n` is not specified, tries to copy
+///     as much as possible.
 ///     """
 STATIC mp_obj_t mod_trezorutils_memcpy(size_t n_args, const mp_obj_t *args) {
-  mp_arg_check_num(n_args, 0, 5, 5, false);
+  mp_arg_check_num(n_args, 0, 4, 5, false);
 
-  mp_buffer_info_t dst;
+  mp_buffer_info_t dst = {0};
   mp_get_buffer_raise(args[0], &dst, MP_BUFFER_WRITE);
   uint32_t dst_ofs = trezor_obj_get_uint(args[1]);
 
-  mp_buffer_info_t src;
+  mp_buffer_info_t src = {0};
   mp_get_buffer_raise(args[2], &src, MP_BUFFER_READ);
   uint32_t src_ofs = trezor_obj_get_uint(args[3]);
 
-  uint32_t n = trezor_obj_get_uint(args[4]);
+  uint32_t n = 0;
+  if (n_args > 4) {
+    n = trezor_obj_get_uint(args[4]);
+  } else {
+    n = src.len;
+  }
 
   size_t dst_rem = (dst_ofs < dst.len) ? dst.len - dst_ofs : 0;
   size_t src_rem = (src_ofs < src.len) ? src.len - src_ofs : 0;
@@ -86,7 +96,7 @@ STATIC mp_obj_t mod_trezorutils_memcpy(size_t n_args, const mp_obj_t *args) {
 
   return mp_obj_new_int(ncpy);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorutils_memcpy_obj, 5, 5,
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorutils_memcpy_obj, 4, 5,
                                            mod_trezorutils_memcpy);
 
 /// def halt(msg: str = None) -> None:
@@ -94,7 +104,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorutils_memcpy_obj, 5, 5,
 ///     Halts execution.
 ///     """
 STATIC mp_obj_t mod_trezorutils_halt(size_t n_args, const mp_obj_t *args) {
-  mp_buffer_info_t msg;
+  mp_buffer_info_t msg = {0};
   if (n_args > 0 && mp_get_buffer(args[0], &msg, MP_BUFFER_READ)) {
     ensure(secfalse, msg.buf);
   } else {
@@ -114,6 +124,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorutils_halt_obj, 0, 1,
 /// VERSION_PATCH: int
 /// MODEL: str
 /// EMULATOR: bool
+/// BITCOIN_ONLY: bool
 
 STATIC const mp_rom_map_elem_t mp_module_trezorutils_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_trezorutils)},

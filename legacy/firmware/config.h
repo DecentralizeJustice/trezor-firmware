@@ -85,9 +85,12 @@ extern Storage configUpdate;
 #define MAX_MNEMONIC_LEN 240
 #define HOMESCREEN_SIZE 1024
 #define UUID_SIZE 12
+#define MIN_AUTOLOCK_DELAY_MS (10 * 1000U)  // 10 seconds
+#define MAX_AUTOLOCK_DELAY_MS 0x20000000U   // ~6 days
 
 void config_init(void);
 void session_clear(bool lock);
+void session_endCurrentSession(void);
 void config_lockDevice(void);
 
 void config_loadDevice(const LoadDevice *msg);
@@ -113,6 +116,7 @@ uint8_t *session_startSession(const uint8_t *received_session_id);
 
 bool config_setMnemonic(const char *mnemonic);
 bool config_containsMnemonic(const char *mnemonic);
+bool config_hasMnemonic(void);
 bool config_getMnemonic(char *dest, uint16_t dest_size);
 bool config_getMnemonicBytes(uint8_t *dest, uint16_t dest_size,
                              uint16_t *real_size);

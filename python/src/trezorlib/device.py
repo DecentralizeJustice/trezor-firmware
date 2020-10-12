@@ -25,6 +25,7 @@ RECOVERY_BACK = "\x08"  # backspace character, sent literally
 
 
 @expect(messages.Success, field="message")
+@session
 def apply_settings(
     client,
     label=None,
@@ -34,63 +35,65 @@ def apply_settings(
     passphrase_always_on_device=None,
     auto_lock_delay_ms=None,
     display_rotation=None,
+    safety_checks=None,
 ):
-    settings = messages.ApplySettings()
-    if label is not None:
-        settings.label = label
-    if language:
-        settings.language = language
-    if use_passphrase is not None:
-        settings.use_passphrase = use_passphrase
-    if homescreen is not None:
-        settings.homescreen = homescreen
-    if passphrase_always_on_device is not None:
-        settings.passphrase_always_on_device = passphrase_always_on_device
-    if auto_lock_delay_ms is not None:
-        settings.auto_lock_delay_ms = auto_lock_delay_ms
-    if display_rotation is not None:
-        settings.display_rotation = display_rotation
+    settings = messages.ApplySettings(
+        label=label,
+        language=language,
+        use_passphrase=use_passphrase,
+        homescreen=homescreen,
+        passphrase_always_on_device=passphrase_always_on_device,
+        auto_lock_delay_ms=auto_lock_delay_ms,
+        display_rotation=display_rotation,
+        safety_checks=safety_checks,
+    )
 
     out = client.call(settings)
-    client.init_device()  # Reload Features
+    client.refresh_features()
     return out
 
 
 @expect(messages.Success, field="message")
+@session
 def apply_flags(client, flags):
     out = client.call(messages.ApplyFlags(flags=flags))
-    client.init_device()  # Reload Features
+    client.refresh_features()
     return out
 
 
 @expect(messages.Success, field="message")
+@session
 def change_pin(client, remove=False):
     ret = client.call(messages.ChangePin(remove=remove))
-    client.init_device()  # Re-read features
+    client.refresh_features()
     return ret
 
 
 @expect(messages.Success, field="message")
+@session
 def change_wipe_code(client, remove=False):
     ret = client.call(messages.ChangeWipeCode(remove=remove))
-    client.init_device()  # Re-read features
+    client.refresh_features()
     return ret
 
 
 @expect(messages.Success, field="message")
+@session
 def sd_protect(client, operation):
     ret = client.call(messages.SdProtect(operation=operation))
-    client.init_device()
+    client.refresh_features()
     return ret
 
 
 @expect(messages.Success, field="message")
+@session
 def wipe(client):
     ret = client.call(messages.WipeDevice())
     client.init_device()
     return ret
 
 
+@session
 def recover(
     client,
     word_count=24,
@@ -194,6 +197,13 @@ def reset(
 
 
 @expect(messages.Success, field="message")
+@session
 def backup(client):
     ret = client.call(messages.BackupDevice())
+    client.refresh_features()
     return ret
+
+
+@expect(messages.Success, field="message")
+def cancel_authorization(client):
+    return client.call(messages.CancelAuthorization())

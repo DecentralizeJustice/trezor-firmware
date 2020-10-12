@@ -2,27 +2,27 @@
 
 ## 1. Running the full test suite
 
-_Note: You need Pipenv, as mentioned in the core's [documentation](https://docs.trezor.io/trezor-firmware/core/) section._
+_Note: You need Poetry, as mentioned in the core's [documentation](https://docs.trezor.io/trezor-firmware/core/) section._
 
 In the `trezor-firmware` checkout, in the root of the monorepo, install the environment:
 
 ```sh
-pipenv sync
+poetry install
 ```
 
 And run the tests:
 
 ```sh
-pipenv run make -C core test_emu_ui
+poetry run make -C core test_emu_ui
 ```
 
 ## 2. Running tests manually
 
-Install the pipenv environment as outlined above. Then switch to a shell inside the
+Install the poetry environment as outlined above. Then switch to a shell inside the
 environment:
 
 ```sh
-pipenv shell
+poetry shell
 ```
 
 If you want to test against the emulator, run it in a separate terminal:
@@ -51,7 +51,7 @@ pytest tests/device_tests --ui=test -m "not skip_ui"
 
 Short version:
 ```sh
-pipenv run make -C core test_emu_ui_record
+poetry run make -C core test_emu_ui_record
 ```
 
 Long version:
@@ -82,7 +82,7 @@ Each `--ui=test` creates a clear report which tests passed and which failed.
 The index file is stored in `tests/ui_tests/reporting/reports/test/index.html`, but for an ease of use
 you will find a link at the end of the pytest summary.
 
-On CI this report is published as an artifact.
+On CI this report is published as an artifact. You can see the latest master report [here](https://gitlab.com/satoshilabs/trezor/trezor-firmware/-/jobs/artifacts/master/file/test_ui_report/index.html?job=core%20device%20ui%20test).
 
 ### Master diff
 
@@ -90,4 +90,6 @@ In the ui tests folder you will also find a Python script `report_master_diff.py
 creates a report where you find which tests were altered, added, or removed relative to
 master. This useful for Pull Requests.
 
-This report is available as an artifact on CI as well.
+This report is available as an artifact on CI as well. You can find it by
+visiting the "core unix ui changes" job in your pipeline - browse the
+artifacts and open `master_diff/index.html`.

@@ -1,14 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-if [ "$1" = "--gcc_source" ]; then
-  TOOLCHAIN_FLAVOR=src
-  shift
-else
-  TOOLCHAIN_FLAVOR=x86_64-linux
-fi
-
-IMAGE=trezor-firmware-build.$TOOLCHAIN_FLAVOR
+CONTAINER_NAME=trezor-firmware-env.nix
 
 TAG=${1:-master}
 REPOSITORY=${2:-local}
@@ -21,7 +14,8 @@ else
   REPOSITORY=https://github.com/$REPOSITORY/trezor-firmware.git
 fi
 
-docker build -t "$IMAGE" --build-arg TOOLCHAIN_FLAVOR=$TOOLCHAIN_FLAVOR ci/
+wget -nc -P ci/ http://dl-cdn.alpinelinux.org/alpine/v3.12/releases/x86_64/alpine-minirootfs-3.12.0-x86_64.tar.gz
+docker build -t "$CONTAINER_NAME" ci/
 
 USER=$(ls -lnd . | awk '{ print $3 }')
 GROUP=$(ls -lnd . | awk '{ print $4 }')
@@ -41,17 +35,20 @@ for BITCOIN_ONLY in 0 1; do
     -v $(pwd)/build/core"${DIRSUFFIX}":/build:z \
     --env BITCOIN_ONLY="$BITCOIN_ONLY" \
     --env PRODUCTION="$PRODUCTION" \
-    --user="$USER:$GROUP" \
-    "$IMAGE" \
-    /bin/sh -c "\
+    "$CONTAINER_NAME" \
+    /nix/var/nix/profiles/default/bin/nix-shell --run "\
       cd /tmp && \
       git clone $REPOSITORY trezor-firmware && \
       cd trezor-firmware/core && \
       ln -s /build build &&
       git checkout $TAG && \
       git submodule update --init --recursive && \
-      pipenv install && \
-      pipenv run make clean vendor build_firmware"
+      poetry install && \
+      poetry run make clean vendor build_firmware && \
+      poetry run ../python/tools/firmware-fingerprint.py \
+          -o build/firmware/firmware.bin.fingerprint \
+          build/firmware/firmware.bin && \
+      chown -R $USER:$GROUP /build"
 
 done
 
@@ -67,19 +64,37 @@ for BITCOIN_ONLY in 0 1; do
     -v $(pwd)/build/legacy"${DIRSUFFIX}":/build:z \
     --env BITCOIN_ONLY="$BITCOIN_ONLY" \
     --env MEMORY_PROTECT="$MEMORY_PROTECT" \
-    --user="$USER:$GROUP" \
-    "$IMAGE" \
-    /bin/sh -c "\
+    "$CONTAINER_NAME" \
+    /nix/var/nix/profiles/default/bin/nix-shell --run "\
       cd /tmp && \
       git clone $REPOSITORY trezor-firmware && \
       cd trezor-firmware/legacy && \
       ln -s /build build &&
       git checkout $TAG && \
       git submodule update --init --recursive && \
-      pipenv install && \
-      pipenv run script/cibuild && \
+      poetry install && \
+      poetry run script/cibuild && \
       mkdir -p build/firmware && \
       cp firmware/trezor.bin build/firmware/firmware.bin && \
-      cp firmware/trezor.elf build/firmware/firmware.elf"
+      cp firmware/trezor.elf build/firmware/firmware.elf && \
+      poetry run ../python/tools/firmware-fingerprint.py \
+          -o build/firmware/firmware.bin.fingerprint \
+          build/firmware/firmware.bin && \
+      chown -R $USER:$GROUP /build"
 
+done
+
+# all built, show fingerprints
+
+echo "Fingerprints:"
+for VARIANT in core legacy; do
+  for BITCOIN_ONLY in 0 1; do
+
+    DIRSUFFIX=${BITCOIN_ONLY/1/-bitcoinonly}
+    DIRSUFFIX=${DIRSUFFIX/0/}
+
+    FWPATH=build/${VARIANT}${DIRSUFFIX}/firmware/firmware.bin
+    FINGERPRINT=$(tr -d '\n' < $FWPATH.fingerprint)
+    echo "$FINGERPRINT $FWPATH"
+  done
 done

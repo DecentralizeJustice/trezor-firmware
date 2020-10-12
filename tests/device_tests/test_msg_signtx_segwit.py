@@ -21,7 +21,7 @@ from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import H_, parse_path
 
 from ..tx_cache import TxCache
-from .signtx import request_finished, request_input, request_output
+from .signtx import request_finished, request_input, request_meta, request_output
 
 B = proto.ButtonRequestType
 TX_API = TxCache("Testnet")
@@ -31,6 +31,12 @@ TXHASH_20912f = bytes.fromhex(
 )
 TXHASH_9c3192 = bytes.fromhex(
     "9c31922be756c06d02167656465c8dc83bb553bf386a3f478ae65b5c021002be"
+)
+TXHASH_dee13c = bytes.fromhex(
+    "dee13c469e7ab28108a1ce470d74cb40896d9bb459951bdf590ca6a495293a02"
+)
+TXHASH_e5040e = bytes.fromhex(
+    "e5040e1bc1ae7667ffb9e5248e90b2fb93cd9150234151ce90e14ab2f5933bcd"
 )
 
 
@@ -63,6 +69,11 @@ class TestMsgSigntxSegwit:
                     request_output(1),
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
+                    request_input(0),
+                    request_meta(TXHASH_20912f),
+                    request_input(0, TXHASH_20912f),
+                    request_output(0, TXHASH_20912f),
+                    request_output(1, TXHASH_20912f),
                     request_input(0),
                     request_output(0),
                     request_output(1),
@@ -107,6 +118,11 @@ class TestMsgSigntxSegwit:
                     request_output(1),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_20912f),
+                    request_input(0, TXHASH_20912f),
+                    request_output(0, TXHASH_20912f),
+                    request_output(1, TXHASH_20912f),
+                    request_input(0),
                     request_output(0),
                     request_output(1),
                     request_input(0),
@@ -128,7 +144,7 @@ class TestMsgSigntxSegwit:
         inp1 = proto.TxInputType(
             address_n=parse_path("m/49'/1'/0'/0/0"),
             amount=2 ** 32 + 1,
-            prev_hash=b"\xff" * 32,
+            prev_hash=TXHASH_dee13c,
             prev_index=0,
             script_type=proto.InputScriptType.SPENDP2SHWITNESS,
         )
@@ -145,21 +161,28 @@ class TestMsgSigntxSegwit:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_dee13c),
+                    request_output(0, TXHASH_dee13c),
+                    request_input(0),
                     request_output(0),
                     request_input(0),
                     request_finished(),
                 ]
             )
-            _, serialized_tx = btc.sign_tx(client, "Testnet", [inp1], [out1])
+            _, serialized_tx = btc.sign_tx(
+                client, "Testnet", [inp1], [out1], prev_txes=TX_API
+            )
         assert (
             serialized_tx.hex()
-            == "01000000000101ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000171600140099a7ecbd938ed1839f5f6bf6d50933c6db9d5cffffffff01010000000100000017a914097c569095163e84475d07aa95a1f736df895b7b8702483045022100cb9d3aa7a8064702e6b61c20c7fb9cb672c69d3786cf5efef8ad6d90136ca7d8022065119ff6c6e6e6960e6508fc5360359bb269bb25ef8d90019decaa0a050cc45a0121033add1f0e8e3c3136f7428dd4a4de1057380bd311f5b0856e2269170b4ffa65bf00000000"
+            == "01000000000101023a2995a4a60c59df1b9559b49b6d8940cb740d47cea10881b27a9e463ce1de00000000171600140099a7ecbd938ed1839f5f6bf6d50933c6db9d5cffffffff01010000000100000017a914097c569095163e84475d07aa95a1f736df895b7b8702483045022100965aa8897c7cd5f0bff830481ed5259bf662ed0415ab497a6a152a3c335eb0a1022060acbbbada909b6575ac6f19382a6bdf4cab2fa1c5421aa66677806f380ddb870121033add1f0e8e3c3136f7428dd4a4de1057380bd311f5b0856e2269170b4ffa65bf00000000"
         )
 
     @pytest.mark.multisig
     def test_send_multisig_1(self, client):
         nodes = [
-            btc.get_public_node(client, parse_path("49'/1'/%d'" % i)).node
+            btc.get_public_node(
+                client, parse_path(f"49'/1'/{i}'"), coin_name="Testnet"
+            ).node
             for i in range(1, 4)
         ]
 
@@ -190,6 +213,11 @@ class TestMsgSigntxSegwit:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_9c3192),
+                    request_input(0, TXHASH_9c3192),
+                    request_output(0, TXHASH_9c3192),
+                    request_output(1, TXHASH_9c3192),
+                    request_input(0),
                     request_output(0),
                     request_input(0),
                     request_finished(),
@@ -208,6 +236,11 @@ class TestMsgSigntxSegwit:
                     request_output(0),
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
+                    request_input(0),
+                    request_meta(TXHASH_9c3192),
+                    request_input(0, TXHASH_9c3192),
+                    request_output(0, TXHASH_9c3192),
+                    request_output(1, TXHASH_9c3192),
                     request_input(0),
                     request_output(0),
                     request_input(0),
@@ -254,6 +287,11 @@ class TestMsgSigntxSegwit:
                     proto.ButtonRequest(code=B.ConfirmOutput),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_20912f),
+                    request_input(0, TXHASH_20912f),
+                    request_output(0, TXHASH_20912f),
+                    request_output(1, TXHASH_20912f),
+                    request_input(0),
                     request_output(0),
                     request_output(1),
                     request_input(0),
@@ -269,13 +307,13 @@ class TestMsgSigntxSegwit:
             == "0100000000010137c361fb8f2d9056ba8c98c5611930fcb48cacfdd0fe2e0449d83eea982f91200000000017160014d16b8c0680c61fc6ed2e407455715055e41052f5ffffffff02e0aebb00000000001976a91414fdede0ddc3be652a0ce1afbc1b509a55b6b94888ac3df39f060000000017a9142f98413cb83ff8b3eaf1926192e68973cbd68a3a8702473044022013cbce7c575337ca05dbe03b5920a0805b510cd8dfd3180bd7c5d01cec6439cd0220050001be4bcefb585caf973caae0ffec682347f2127cc22f26efd93ee54fd852012103e7bfe10708f715e8538c92d46ca50db6f657bbc455b7494e6a0303ccdb868b7900000000"
         )
 
-        run_attack = True
+        attack_count = 2
 
         def attack_processor(msg):
-            nonlocal run_attack
+            nonlocal attack_count
 
-            if run_attack and msg.tx.inputs and msg.tx.inputs[0] == inp1:
-                run_attack = False
+            if attack_count > 0 and msg.tx.inputs and msg.tx.inputs[0] == inp1:
+                attack_count -= 1
                 msg.tx.inputs[0].address_n[2] = H_(12)
 
             return msg
@@ -291,6 +329,11 @@ class TestMsgSigntxSegwit:
                     request_output(1),
                     proto.ButtonRequest(code=B.SignTx),
                     request_input(0),
+                    request_meta(TXHASH_20912f),
+                    request_input(0, TXHASH_20912f),
+                    request_output(0, TXHASH_20912f),
+                    request_output(1, TXHASH_20912f),
+                    request_input(0),
                     proto.Failure(code=proto.FailureType.ProcessError),
                 ]
             )
@@ -303,3 +346,96 @@ class TestMsgSigntxSegwit:
                 assert exc.value.message.endswith(
                     "Transaction has changed during signing"
                 )
+
+    def test_attack_mixed_inputs(self, client):
+        TRUE_AMOUNT = 123456789
+        FAKE_AMOUNT = 120000000
+
+        inp1 = proto.TxInputType(
+            address_n=parse_path("44'/1'/0'/0/0"),
+            amount=31000000,
+            prev_hash=TXHASH_e5040e,
+            prev_index=0,
+            script_type=proto.InputScriptType.SPENDADDRESS,
+            sequence=0xFFFFFFFD,
+        )
+        inp2 = proto.TxInputType(
+            address_n=parse_path("49'/1'/0'/1/0"),
+            amount=TRUE_AMOUNT,
+            prev_hash=TXHASH_20912f,
+            prev_index=0,
+            script_type=proto.InputScriptType.SPENDP2SHWITNESS,
+            sequence=0xFFFFFFFD,
+        )
+        out1 = proto.TxOutputType(
+            address="mhRx1CeVfaayqRwq5zgRQmD7W5aWBfD5mC",
+            amount=31000000 + TRUE_AMOUNT - 3456789,
+            script_type=proto.OutputScriptType.PAYTOADDRESS,
+        )
+
+        expected_responses = [
+            request_input(0),
+            request_input(1),
+            request_output(0),
+            proto.ButtonRequest(code=proto.ButtonRequestType.ConfirmOutput),
+            proto.ButtonRequest(code=proto.ButtonRequestType.FeeOverThreshold),
+            proto.ButtonRequest(code=proto.ButtonRequestType.SignTx),
+            request_input(0),
+            request_meta(TXHASH_e5040e),
+            request_input(0, TXHASH_e5040e),
+            request_output(0, TXHASH_e5040e),
+            request_output(1, TXHASH_e5040e),
+            request_input(1),
+            request_meta(TXHASH_20912f),
+            request_input(0, TXHASH_20912f),
+            request_output(0, TXHASH_20912f),
+            request_output(1, TXHASH_20912f),
+            request_input(0),
+            request_input(1),
+            request_output(0),
+            request_input(1),
+            request_output(0),
+            request_input(1),
+            request_finished(),
+        ]
+
+        if client.features.model == "1":
+            # T1 asks for first input for witness again
+            expected_responses.insert(-2, request_input(0))
+
+        with client:
+            # Sign unmodified transaction.
+            # "Fee over threshold" warning is displayed - fee is the whole TRUE_AMOUNT
+            client.set_expected_responses(expected_responses)
+            btc.sign_tx(
+                client,
+                "Testnet",
+                [inp1, inp2],
+                [out1],
+                prev_txes=TX_API,
+            )
+
+        # In Phase 1 make the user confirm a lower value of the segwit input.
+        inp2.amount = FAKE_AMOUNT
+
+        if client.features.model == "1":
+            # T1 fails as soon as it encounters the fake amount.
+            expected_responses = (
+                expected_responses[:4] + expected_responses[5:15] + [proto.Failure()]
+            )
+        else:
+            expected_responses = (
+                expected_responses[:4] + expected_responses[5:16] + [proto.Failure()]
+            )
+
+        with pytest.raises(TrezorFailure) as e, client:
+            client.set_expected_responses(expected_responses)
+            btc.sign_tx(
+                client,
+                "Testnet",
+                [inp1, inp2],
+                [out1],
+                prev_txes=TX_API,
+            )
+
+        assert e.value.failure.message.endswith("Invalid amount specified")

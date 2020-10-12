@@ -36,7 +36,7 @@ STATIC mp_obj_t ui_wait_callback = mp_const_none;
 STATIC secbool wrapped_ui_wait_callback(uint32_t wait, uint32_t progress,
                                         const char *message) {
   if (mp_obj_is_callable(ui_wait_callback)) {
-    mp_obj_t args[3];
+    mp_obj_t args[3] = {0};
     args[0] = mp_obj_new_int(wait);
     args[1] = mp_obj_new_int(progress);
     args[2] = mp_obj_new_str(message, strlen(message));
@@ -74,7 +74,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorconfig_init_obj, 0, 1,
 ///     """
 STATIC mp_obj_t mod_trezorconfig_unlock(mp_obj_t pin, mp_obj_t ext_salt) {
   uint32_t pin_i = trezor_obj_get_uint(pin);
-  mp_buffer_info_t ext_salt_b;
+  mp_buffer_info_t ext_salt_b = {0};
   ext_salt_b.buf = NULL;
   if (ext_salt != mp_const_none) {
     mp_get_buffer_raise(ext_salt, &ext_salt_b, MP_BUFFER_READ);
@@ -112,6 +112,19 @@ STATIC mp_obj_t mod_trezorconfig_lock(void) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_trezorconfig_lock_obj,
                                  mod_trezorconfig_lock);
 
+/// def is_unlocked() -> bool:
+///     """
+///     Returns True if storage is unlocked, False otherwise.
+///     """
+STATIC mp_obj_t mod_trezorconfig_is_unlocked(void) {
+  if (sectrue != storage_is_unlocked()) {
+    return mp_const_false;
+  }
+  return mp_const_true;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_trezorconfig_is_unlocked_obj,
+                                 mod_trezorconfig_is_unlocked);
+
 /// def has_pin() -> bool:
 ///     """
 ///     Returns True if storage has a configured PIN, False otherwise.
@@ -148,7 +161,7 @@ STATIC mp_obj_t mod_trezorconfig_change_pin(size_t n_args,
                                             const mp_obj_t *args) {
   uint32_t oldpin = trezor_obj_get_uint(args[0]);
   uint32_t newpin = trezor_obj_get_uint(args[1]);
-  mp_buffer_info_t ext_salt_b;
+  mp_buffer_info_t ext_salt_b = {0};
   const uint8_t *old_ext_salt = NULL;
   if (args[2] != mp_const_none) {
     mp_get_buffer_raise(args[2], &ext_salt_b, MP_BUFFER_READ);
@@ -210,7 +223,7 @@ STATIC mp_obj_t mod_trezorconfig_change_wipe_code(size_t n_args,
                                                   const mp_obj_t *args) {
   uint32_t pin = trezor_obj_get_uint(args[0]);
   uint32_t wipe_code = trezor_obj_get_uint(args[2]);
-  mp_buffer_info_t ext_salt_b;
+  mp_buffer_info_t ext_salt_b = {0};
   const uint8_t *ext_salt = NULL;
   if (args[1] != mp_const_none) {
     mp_get_buffer_raise(args[1], &ext_salt_b, MP_BUFFER_READ);
@@ -248,7 +261,7 @@ STATIC mp_obj_t mod_trezorconfig_get(size_t n_args, const mp_obj_t *args) {
   if (len == 0) {
     return mp_const_empty_bytes;
   }
-  vstr_t vstr;
+  vstr_t vstr = {0};
   vstr_init_len(&vstr, len);
   if (sectrue != storage_get(appkey, vstr.buf, vstr.len, &len)) {
     vstr_clear(&vstr);
@@ -374,6 +387,8 @@ STATIC const mp_rom_map_elem_t mp_module_trezorconfig_globals_table[] = {
      MP_ROM_PTR(&mod_trezorconfig_check_pin_obj)},
     {MP_ROM_QSTR(MP_QSTR_unlock), MP_ROM_PTR(&mod_trezorconfig_unlock_obj)},
     {MP_ROM_QSTR(MP_QSTR_lock), MP_ROM_PTR(&mod_trezorconfig_lock_obj)},
+    {MP_ROM_QSTR(MP_QSTR_is_unlocked),
+     MP_ROM_PTR(&mod_trezorconfig_is_unlocked_obj)},
     {MP_ROM_QSTR(MP_QSTR_has_pin), MP_ROM_PTR(&mod_trezorconfig_has_pin_obj)},
     {MP_ROM_QSTR(MP_QSTR_get_pin_rem),
      MP_ROM_PTR(&mod_trezorconfig_get_pin_rem_obj)},
