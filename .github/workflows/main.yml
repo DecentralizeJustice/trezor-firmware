@@ -14,7 +14,7 @@ jobs:
         lfs: 'true'
     #- run: ./python/build_bin.sh
     #- run: python setup.py install
-    - run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.7z - O libusb-1.0.23.7z
+    - run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.7z --output libusb-1.0.23.7z
     - run: dir
     - run: 7z libusb-1.0.23.7z
     - run: dir
