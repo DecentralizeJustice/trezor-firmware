@@ -34,16 +34,16 @@ for msifile in core dev exe lib pip tools; do
     rm $msifile.msi*
 done
 
-# Get and build libusb
-wget -N -c -O libusb.tar.bz2 "$LIBUSB_URL"
-echo "$LIBUSB_HASH  libusb.tar.bz2" | sha256sum -c
-tar -xf libusb.tar.bz2
-pushd "libusb-$LIBUSB_VERSION"
-./configure --host=x86_64-w64-mingw32
-faketime -f "2019-01-01 00:00:00" make
-cp libusb/.libs/libusb-1.0.dll ~/.wine/drive_c/python3/
-popd
-rm -r libusb*
+# # Get and build libusb
+# wget -N -c -O libusb.tar.bz2 "$LIBUSB_URL"
+# echo "$LIBUSB_HASH  libusb.tar.bz2" | sha256sum -c
+# tar -xf libusb.tar.bz2
+# pushd "libusb-$LIBUSB_VERSION"
+# ./configure --host=x86_64-w64-mingw32
+# faketime -f "2019-01-01 00:00:00" make
+# cp libusb/.libs/libusb-1.0.dll ~/.wine/drive_c/python3/
+# popd
+# rm -r libusb*
 
 # Get the Windows SDK
 pushd `mktemp -d`
@@ -59,6 +59,7 @@ $PYTHON -m pip install -U pip
 
 # Install Poetry and things needed for pyinstaller
 $PYTHON -m pip install poetry==1.0.10
+pip3 install trezor[hidapi]
 
 # We also need to change the timestamps of all of the base library files
 lib_dir=~/.wine/drive_c/python3/Lib
