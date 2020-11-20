@@ -18,4 +18,4 @@ jobs:
     # - run: sudo apt-add-repository "deb https://dl.winehq.org/wine-builds/ubuntu $(lsb_release -cs) main"
     # - run: sudo apt install --install-recommends winehq-stable
     # - run: sudo apt-get install -y faketime
-    - run: ./python/build_bin.sh
+    - run: .\python\build_bin.sh
