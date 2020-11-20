@@ -16,7 +16,7 @@ jobs:
     #- run: python setup.py install
     - run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.7z --output libusb-1.0.23.7z
     - run: dir
-    - run: 7z x libusb-1.0.23.7z
+    - run: 7z libusb-1.0.23.7z
     - run: dir
     - run: pip install pyinstaller
     - name: Step 2
