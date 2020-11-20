@@ -10,3 +10,5 @@ __pycache__/
 /build
 proto.gv*
 .DS_Store
+libusb-1.0.23/
+libusb.tar.bz2
