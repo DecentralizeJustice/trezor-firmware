@@ -14,7 +14,7 @@ jobs:
         lfs: 'true'
     #- run: ./python/build_bin.sh
     - name: Run Tests
-        working-directory: .\python
-        run: python setup.py install
+      working-directory: .\python
+      run: python setup.py install
     - run: pip install pyinstaller
     - run: pyinstaller python/trezorCliTool.spec
