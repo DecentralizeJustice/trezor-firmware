@@ -59,7 +59,7 @@ $PYTHON -m pip install -U pip
 
 # Install Poetry and things needed for pyinstaller
 $PYTHON -m pip install poetry==1.0.10
-pip3 install trezor[hidapi]
+python setup.py install
 
 # We also need to change the timestamps of all of the base library files
 lib_dir=~/.wine/drive_c/python3/Lib
