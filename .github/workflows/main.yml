@@ -14,8 +14,9 @@ jobs:
         lfs: 'true'
     #- run: ./python/build_bin.sh
     #- run: python setup.py install
-    - run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.tar.bz2 --output libusb-1.0.23.tar.bz2
-    - run: tar libusb.tar.bz2
+    - run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.7z --output libusb-1.0.23.7z
+    - run: dir
+    - run: 7z e libusb-1.0.23.7z
     - run: dir
     - run: pip install pyinstaller
     - name: Step 2
