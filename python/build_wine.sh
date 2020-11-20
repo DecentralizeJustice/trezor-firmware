@@ -67,7 +67,7 @@ TZ=UTC find ${lib_dir} -name '*.py' -type f -execdir touch -t "201901010000.00" 
 
 # Install python dependencies
 POETRY="wine $PYHOME/Scripts/poetry.exe"
-sleep 5 # For some reason, pausing for a few seconds makes the next step work
+#sleep 5 # For some reason, pausing for a few seconds makes the next step work
 # $POETRY install -E qt
 #
 # # make the ui files
@@ -79,10 +79,10 @@ sleep 5 # For some reason, pausing for a few seconds makes the next step work
 #     sed -i 's/raise()/raise_()/g' $gen_file
 # done
 # popd
-pushd python
+#pushd python
 # Do the build
 export PYTHONHASHSEED=42
-$POETRY run pyinstaller trezorCliTool.spec
+run pyinstaller trezorCliTool.spec
 unset PYTHONHASHSEED
 ls
 # Make the final compressed package
