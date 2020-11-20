@@ -84,9 +84,9 @@ pushd python
 export PYTHONHASHSEED=42
 $POETRY run pyinstaller trezorCliTool.spec
 unset PYTHONHASHSEED
-
+ls
 # Make the final compressed package
-pushd dist
-VERSION=`$POETRY run hwi --version | cut -d " " -f 2 | dos2unix`
-zip "hwi-${VERSION}-windows-amd64.zip" trezorCliTool.exe
-popd
+# pushd dist
+# VERSION=`$POETRY run hwi --version | cut -d " " -f 2 | dos2unix`
+# zip "hwi-${VERSION}-windows-amd64.zip" trezorCliTool.exe
+# popd
