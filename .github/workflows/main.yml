@@ -12,6 +12,5 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true'
-    - run: pushd \python
     #- run: ./python/build_bin.sh
-    - run: pyinstaller trezorCliTool.spec
+    - run: pyinstaller \python\trezorCliTool.spec
