@@ -6,7 +6,7 @@ block_cipher = None
 
 binaries = []
 if platform.system() == 'Windows':
-    binaries = [("c:/python3/libusb-1.0.dll", ".")]
+    binaries = [("libusb-1.0.dll", ".")]
 elif platform.system() == 'Linux':
     binaries = [("/lib/x86_64-linux-gnu/libusb-1.0.so.0", ".")]
 elif platform.system() == 'Darwin':
