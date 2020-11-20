@@ -16,5 +16,10 @@ jobs:
     - name: Run Tests
       working-directory: .\python
       run: python setup.py install
+    - name: Step 1
+      working-directory: .\python
+      run: curl https://github.com/libusb/libusb/releases/download/v1.0.23/libusb-1.0.23.tar.bz2 --output libusb-1.0.23.tar.bz2
     - run: pip install pyinstaller
-    - run: pyinstaller python/trezorCliTool.spec
+    - name: Step 2
+      working-directory: .\python
+      run: pyinstaller python/trezorCliTool.spec
